@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  shoppingLists ShoppingList[]
+}
+
+model Store {
+  id        String  @id @default(cuid())
+  name      String
+  logoUrl   String?
+  city      String
+  sourceUrl String?
+  prices    Price[]
+}
+
+model Product {
+  id          String             @id @default(cuid())
+  name        String
+  brand       String
+  category    String
+  barcode     String             @unique
+  unit        String
+  volume      String
+  imageUrl    String?
+  description String?
+  prices      Price[]
+  listItems   ShoppingListItem[]
+  recipeItems RecipeItem[]
+
+  @@index([name])
+  @@index([brand])
+  @@index([category])
+}
+
+model Price {
+  id            String   @id @default(cuid())
+  productId     String
+  storeId       String
+  price         Decimal  @db.Decimal(10, 2)
+  oldPrice      Decimal? @db.Decimal(10, 2)
+  discountPrice Decimal? @db.Decimal(10, 2)
+  dateCollected DateTime
+  isAvailable   Boolean  @default(true)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([productId, storeId, dateCollected])
+}
+
+model ShoppingList {
+  id        String             @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime           @default(now())
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     ShoppingListItem[]
+}
+
+model ShoppingListItem {
+  id             String       @id @default(cuid())
+  shoppingListId String
+  productId      String
+  quantity       Int          @default(1)
+  shoppingList   ShoppingList @relation(fields: [shoppingListId], references: [id], onDelete: Cascade)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([shoppingListId, productId])
+}
+
+model Recipe {
+  id          String       @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String?
+  items       RecipeItem[]
+}
+
+model RecipeItem {
+  id        String  @id @default(cuid())
+  recipeId  String
+  productId String
+  quantity  Int     @default(1)
+  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
