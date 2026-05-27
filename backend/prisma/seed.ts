@@ -40,7 +40,8 @@ const productImages = {
   coffee: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=900&q=80",
   tea: "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=900&q=80",
   dishSoap: "https://images.unsplash.com/photo-1626806819282-2c1dc01a5e0c?auto=format&fit=crop&w=900&q=80",
-  detergent: "https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?auto=format&fit=crop&w=900&q=80"
+  detergent: "https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?auto=format&fit=crop&w=900&q=80",
+  iceCream: "https://src.zakaz.atbmarket.com/cache/photos/91949/catalog_product_main_91949.jpg"
 };
 
 const products = [
@@ -73,21 +74,22 @@ const products = [
   ["Кава мелена", "Jacobs", "Кава/чай", "482000100027", "шт", "225 г", productImages.coffee, "kava-melena-jacobs"],
   ["Чай чорний", "Ahmad", "Кава/чай", "482000100028", "шт", "100 пак.", productImages.tea, "caj-cornij-ahmad"],
   ["Засіб для миття посуду", "Fairy", "Побутова хімія", "482000100029", "шт", "500 мл", productImages.dishSoap, "zasib-dla-mitta-posudu-fairy"],
-  ["Пральний порошок", "Ariel", "Побутова хімія", "482000100030", "шт", "3 кг", productImages.detergent, "pralnij-porosok-ariel"]
+  ["Пральний порошок", "Ariel", "Побутова хімія", "482000100030", "шт", "3 кг", productImages.detergent, "pralnij-porosok-ariel"],
+  ["Морозиво стакан великан з какао", "Ласунка", "Морозиво", "482000100031", "шт", "100 г", productImages.iceCream, "morozivo-100g-lasunka-stakan-velikan-z-kakao-ta-varenim-zgusenim-molokom"]
 ] as const;
 
 const basePrices = [
-  38, 42, 35, 78, 31, 26, 29, 24, 198, 176, 112, 18, 16, 20, 17, 64, 59, 34, 57, 62, 76, 72, 86, 44, 22, 58, 149, 128, 63, 319
+  38, 42, 35, 78, 31, 26, 29, 24, 198, 176, 112, 18, 16, 20, 17, 64, 59, 34, 57, 62, 76, 72, 86, 44, 22, 58, 149, 128, 63, 319, 32
 ];
 
 const storePriceDeltas = [-0.04, 0.05, 0.09, -0.01, 0.02, 0.03, 0.07, 0.0];
 
-function productSourceUrl(storeUrl: string | null | undefined, slug: string) {
-  if (!storeUrl) return null;
-  const normalized = storeUrl.replace(/\/$/, "");
-  if (normalized.includes("atbmarket.com")) return `${normalized}/product/${slug}`;
-  if (normalized.includes("zakaz.ua")) return `${normalized}/uk/products/${slug}/`;
-  return `${normalized}/product/${slug}`;
+function productSourceUrl(productName: string, storeName: string) {
+  if (productName === "Морозиво стакан великан з какао" && storeName === "АТБ") {
+    return "https://www.atbmarket.com/product/morozivo-100g-lasunka-stakan-velikan-z-kakao-ta-varenim-zgusenim-molokom";
+  }
+
+  return null;
 }
 
 async function main() {
@@ -129,7 +131,7 @@ async function main() {
   });
 
   for (const [productIndex, product] of createdProducts.entries()) {
-    const [, , , , , , imageUrl, slug] = products[productIndex];
+    const [, , , , , , imageUrl] = products[productIndex];
     for (const [storeIndex, store] of createdStores.entries()) {
       for (const [dateIndex, dateCollected] of dates.entries()) {
         const base = basePrices[productIndex];
@@ -137,8 +139,6 @@ async function main() {
         const historicalDelta = (dateIndex - 2) * 0.025;
         const price = Math.round(base * (1 + storeDelta + historicalDelta) * 100) / 100;
         const hasDiscount = dateIndex === dates.length - 1 && (productIndex + storeIndex) % 5 === 0;
-        const atbDemoUrl = "https://www.atbmarket.com/product/morozivo-100g-lasunka-stakan-velikan-z-kakao-ta-varenim-zgusenim-molokom";
-
         await prisma.price.create({
           data: {
             productId: product.id,
@@ -149,7 +149,7 @@ async function main() {
             dateCollected,
             isAvailable: !((productIndex + storeIndex) % 23 === 0 && dateIndex === dates.length - 1),
             imageUrl,
-            sourceUrl: store.name === "АТБ" && productIndex === 0 ? atbDemoUrl : productSourceUrl(store.sourceUrl, slug)
+            sourceUrl: productSourceUrl(product.name, store.name)
           }
         });
       }
