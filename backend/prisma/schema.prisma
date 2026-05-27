@@ -52,6 +52,7 @@ model Price {
   discountPrice Decimal? @db.Decimal(10, 2)
   dateCollected DateTime
   isAvailable   Boolean  @default(true)
+  imageUrl      String?
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 

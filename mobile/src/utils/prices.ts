@@ -23,6 +23,17 @@ export function minProductPrice(product: Product) {
   return Math.min(...available.map(activePrice));
 }
 
+export function cheapestAvailablePrice(product: Product) {
+  const available = latestByStore(product.prices).filter((price) => price.isAvailable);
+  if (!available.length) return null;
+  return available.reduce((best, price) => (activePrice(price) < activePrice(best) ? price : best));
+}
+
+export function productImageForBestPrice(product: Product) {
+  const cheapest = cheapestAvailablePrice(product);
+  return cheapest?.imageUrl || product.imageUrl;
+}
+
 export function averageLatestPrice(product: Product) {
   const prices = latestByStore(product.prices).filter((price) => price.isAvailable);
   if (!prices.length) return 0;
