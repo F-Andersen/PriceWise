@@ -1,0 +1,1 @@
+ALTER TABLE "Price" ADD COLUMN "sourceUrl" TEXT;

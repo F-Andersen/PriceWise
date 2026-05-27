@@ -36,6 +36,7 @@ router.get("/", async (req, res) => {
         product: price.product,
         store: price.store,
         imageUrl: price.imageUrl ?? price.product.imageUrl,
+        sourceUrl: price.sourceUrl,
         price: roundMoney(currentPrice),
         oldPrice: roundMoney(oldPrice),
         saveAmount: roundMoney(saveAmount),

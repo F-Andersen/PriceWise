@@ -16,6 +16,7 @@ export type Price = {
   dateCollected: string;
   isAvailable: boolean;
   imageUrl?: string | null;
+  sourceUrl?: string | null;
   store: Store;
 };
 
@@ -69,6 +70,7 @@ export type Offer = {
   product: Product;
   store: Store;
   imageUrl?: string | null;
+  sourceUrl?: string | null;
   price: number;
   oldPrice: number;
   saveAmount: number;
