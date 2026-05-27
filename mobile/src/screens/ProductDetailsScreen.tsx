@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
-import { Alert, Dimensions, Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -56,6 +56,11 @@ export function ProductDetailsScreen() {
           <View>
             <Text style={styles.store}>{price.store.name}</Text>
             <Text style={styles.date}>{new Date(price.dateCollected).toLocaleDateString()}</Text>
+            {price.sourceUrl ? (
+              <Pressable onPress={() => Linking.openURL(price.sourceUrl!)}>
+                <Text style={styles.sourceLink}>Відкрити товар</Text>
+              </Pressable>
+            ) : null}
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={styles.price}>{activePrice(price)} грн</Text>
@@ -99,6 +104,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#fff", borderColor: "#e4ece8", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   store: { color: "#17231e", fontWeight: "800" },
   date: { color: "#60736b", marginTop: 2 },
+  sourceLink: { color: "#0e7a43", fontWeight: "800", marginTop: 6 },
   price: { color: "#0e7a43", fontWeight: "900", fontSize: 16 },
   discount: { color: "#0e7a43", backgroundColor: "#dff5e9", overflow: "hidden", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
   chart: { borderRadius: 8 },
