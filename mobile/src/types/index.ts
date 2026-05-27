@@ -15,6 +15,7 @@ export type Price = {
   discountPrice?: string | number | null;
   dateCollected: string;
   isAvailable: boolean;
+  imageUrl?: string | null;
   store: Store;
 };
 
@@ -67,10 +68,11 @@ export type Offer = {
   id: string;
   product: Product;
   store: Store;
+  imageUrl?: string | null;
   price: number;
   oldPrice: number;
   saveAmount: number;
   discountPercent: number;
   dateCollected: string;
-  label: "Акція" | "Спецпропозиція";
+  label: string;
 };

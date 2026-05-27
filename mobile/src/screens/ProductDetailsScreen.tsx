@@ -7,7 +7,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { Product } from "../types";
-import { activePrice, averageLatestPrice, latestByStore, minProductPrice } from "../utils/prices";
+import { activePrice, averageLatestPrice, latestByStore, minProductPrice, productImageForBestPrice } from "../utils/prices";
 
 export function ProductDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ProductDetails">>();
@@ -36,10 +36,11 @@ export function ProductDetailsScreen() {
   const latest = latestByStore(product.prices);
   const history = (product.prices || []).slice(-8);
   const chartData = history.length ? history.map(activePrice) : [0];
+  const imageUrl = productImageForBestPrice(product);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Image source={{ uri: product.imageUrl }} style={styles.image} />
+      {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : null}
       <Text style={styles.category}>{product.category}</Text>
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.meta}>{product.brand} · {product.volume} · {product.unit}</Text>

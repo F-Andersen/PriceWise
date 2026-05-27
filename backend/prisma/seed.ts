@@ -46,6 +46,17 @@ const basePrices = [
   38, 42, 35, 78, 31, 26, 29, 24, 198, 176, 112, 18, 16, 20, 17, 64, 59, 34, 57, 62, 76, 72, 86, 44, 22, 58, 149, 128, 63, 319
 ];
 
+const storeImageThemes = [
+  { bg: "eaf7ef", fg: "176d45" },
+  { bg: "fff2dc", fg: "bf5f1b" },
+  { bg: "e7f7df", fg: "38a830" }
+];
+
+function storeProductImageUrl(productName: string, storeName: string, storeIndex: number) {
+  const theme = storeImageThemes[storeIndex % storeImageThemes.length];
+  return `https://placehold.co/600x400/${theme.bg}/${theme.fg}?text=${encodeURIComponent(`${storeName} ${productName}`)}`;
+}
+
 async function main() {
   await prisma.recipeItem.deleteMany();
   await prisma.recipe.deleteMany();
@@ -100,7 +111,8 @@ async function main() {
             oldPrice: hasDiscount ? Math.round(price * 1.14 * 100) / 100 : null,
             discountPrice: hasDiscount ? Math.round(price * 0.9 * 100) / 100 : null,
             dateCollected,
-            isAvailable: !((productIndex + storeIndex) % 17 === 0 && dateIndex === dates.length - 1)
+            isAvailable: !((productIndex + storeIndex) % 17 === 0 && dateIndex === dates.length - 1),
+            imageUrl: storeProductImageUrl(product.name, store.name, storeIndex)
           }
         });
       }
