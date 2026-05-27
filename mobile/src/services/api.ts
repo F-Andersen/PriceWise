@@ -1,6 +1,6 @@
 import { ComparisonResult, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:4000/api").trim();
+const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:4001/api").trim();
 
 let authToken: string | null = null;
 

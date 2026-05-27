@@ -11,7 +11,7 @@ import shoppingListRoutes from "./routes/shoppingLists";
 import storeRoutes from "./routes/stores";
 
 const app = express();
-const port = Number(process.env.PORT || 4000);
+const port = Number(process.env.PORT || 4001);
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json());
