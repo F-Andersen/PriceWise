@@ -35,7 +35,8 @@ export function ProductSearchScreen() {
         data={categories}
         keyExtractor={(item) => item}
         showsHorizontalScrollIndicator={false}
-        style={{ maxHeight: 42 }}
+        style={styles.categoryList}
+        contentContainerStyle={styles.categoryListContent}
         renderItem={({ item }) => (
           <Pressable onPress={() => setCategory(item)} style={[styles.chip, item === category && styles.chipActive]}>
             <Text style={[styles.chipText, item === category && styles.chipTextActive]}>{item}</Text>
@@ -46,7 +47,8 @@ export function ProductSearchScreen() {
         data={filtered}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <ProductCard product={item} onPress={() => navigation.navigate("ProductDetails", { productId: item.id })} />}
-        contentContainerStyle={{ paddingTop: 12 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.productListContent}
       />
     </View>
   );
@@ -57,8 +59,11 @@ const styles = StyleSheet.create({
   searchBox: { ...shadow, backgroundColor: colors.surface, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: colors.border, marginBottom: 10 },
   title: { color: colors.text, fontSize: 20, fontWeight: "900", marginBottom: 10 },
   input: { backgroundColor: colors.background, borderColor: colors.border, borderWidth: 1, borderRadius: 10, padding: 13, color: colors.text },
-  chip: { height: 36, paddingHorizontal: 13, justifyContent: "center", backgroundColor: colors.surface, borderRadius: 999, borderWidth: 1, borderColor: colors.border, marginRight: 8 },
+  categoryList: { flexGrow: 0, flexShrink: 0, height: 48, marginBottom: 10 },
+  categoryListContent: { alignItems: "center", paddingRight: 8 },
+  chip: { minHeight: 36, paddingHorizontal: 13, justifyContent: "center", backgroundColor: colors.surface, borderRadius: 999, borderWidth: 1, borderColor: colors.border, marginRight: 8 },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: colors.muted, fontWeight: "800" },
-  chipTextActive: { color: "#fff" }
+  chipTextActive: { color: "#fff" },
+  productListContent: { paddingTop: 12, paddingBottom: 118 }
 });

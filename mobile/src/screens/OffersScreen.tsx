@@ -77,7 +77,7 @@ export function OffersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: 16, paddingBottom: 28 },
+  content: { padding: 16, paddingBottom: 118 },
   hero: { ...shadow, backgroundColor: colors.primary, borderRadius: 16, padding: 18, marginBottom: 14 },
   kicker: { color: "#d7f8e5", fontWeight: "900", textTransform: "uppercase", fontSize: 12 },
   title: { color: "#fff", fontSize: 30, fontWeight: "900", marginTop: 10 },
