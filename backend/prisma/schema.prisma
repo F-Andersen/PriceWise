@@ -22,6 +22,7 @@ model Store {
   city      String
   sourceUrl String?
   prices    Price[]
+  sources   ProductSource[]
 }
 
 model Product {
@@ -35,12 +36,25 @@ model Product {
   imageUrl    String?
   description String?
   prices      Price[]
+  sources     ProductSource[]
   listItems   ShoppingListItem[]
   recipeItems RecipeItem[]
 
   @@index([name])
   @@index([brand])
   @@index([category])
+}
+
+model ProductSource {
+  id        String  @id @default(cuid())
+  productId String
+  storeId   String
+  sourceUrl String  @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store     Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, storeId])
+  @@index([storeId])
 }
 
 model Price {

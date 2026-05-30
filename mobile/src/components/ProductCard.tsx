@@ -15,7 +15,7 @@ export function ProductCard({ product, onPress }: Props) {
   return (
     <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
       <View style={styles.imageWrap}>
-        {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : <Text style={styles.imageFallback}>PW</Text>}
+        {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} resizeMode="contain" /> : <Text style={styles.imageFallback}>PW</Text>}
       </View>
 
       <View style={styles.content}>

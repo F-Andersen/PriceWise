@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 28
+    paddingBottom: 118
   },
   hero: {
     ...shadow,
