@@ -78,6 +78,18 @@ describe("compareBaskets", () => {
     assert.equal(empty.difference, null);
   });
 
+  it("treats a store whose items are known but out of stock as partial, not no_data", () => {
+    const result = compareBaskets({
+      now,
+      items: [item("a"), item("b")],
+      stores: [store("x")],
+      latestPrices: [price("a", "x", 10, { isAvailable: false })]
+    });
+    assert.equal(result.stores[0].status, "partial");
+    assert.equal(result.stores[0].foundCount, 0);
+    assert.deepEqual(result.verdict, { kind: "none_complete", partialCount: 1 });
+  });
+
   it("explains why an item is missing", () => {
     const result = compareBaskets({
       now,

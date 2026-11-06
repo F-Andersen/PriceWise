@@ -49,6 +49,7 @@ export type MissingLine = {
 
 export type StoreBasket = {
   store: StoreInput;
+  /** complete: every item found; partial: some missing; no_data: no record at all for this basket. */
   status: "complete" | "partial" | "no_data";
   /** Sum of the items found. For a partial basket it is NOT comparable with others. */
   totalPrice: number;
@@ -110,7 +111,10 @@ export function compareBaskets(params: {
       });
     }
 
-    const status: StoreBasket["status"] = lines.length === 0 ? "no_data" : missing.length === 0 ? "complete" : "partial";
+    // no_data only when we know nothing about this store for the basket; a store whose
+    // items are known but out of stock is a (0 of N) partial basket, not "no data".
+    const knowsSomething = lines.length > 0 || missing.some((line) => line.reason === "unavailable");
+    const status: StoreBasket["status"] = !knowsSomething ? "no_data" : missing.length === 0 ? "complete" : "partial";
     const checkedAt = lines.length ? new Date(Math.min(...lines.map((line) => line.checkedAt.getTime()))) : null;
     return {
       store,
