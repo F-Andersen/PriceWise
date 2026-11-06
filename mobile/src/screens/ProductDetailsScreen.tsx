@@ -1,133 +1,218 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { RouteProp, useRoute } from "@react-navigation/native";
-import { useEffect, useState } from "react";
-import { Alert, Dimensions, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useCallback, useEffect, useState } from "react";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-chart-kit";
+import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, PriceDate, ProductImage, SectionHeader, SkeletonList } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
-import { MarketPrice, Product } from "../types";
-import { activePrice, latestByStore, productImageForBestPrice } from "../utils/prices";
+import { useAddToCart } from "../services/useAddToCart";
+import { Alternative, MarketPrice, Price, Product } from "../types";
+import { activePrice, countLabel, formatPrice, latestByStore, numberPrice, productImageForBestPrice, splitMarketPrices } from "../utils/prices";
+import { colors, layout, radii, spacing, type } from "../utils/theme";
+
+function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
+  const unavailable = !price.isAvailable;
+  const hasDiscount = Boolean(price.discountPrice);
+  return (
+    <View style={[styles.priceRow, showDivider && styles.divider]}>
+      <View style={styles.priceRowMain}>
+        <Text style={type.bodyStrong}>{price.store.name}</Text>
+        {productName ? <Text style={styles.similarName} numberOfLines={2}>{productName}</Text> : null}
+        <PriceDate value={price.dateCollected} />
+        {price.sourceUrl ? (
+          <Pressable accessibilityRole="link" accessibilityLabel={`Відкрити товар на сайті: ${price.store.name}`} onPress={() => Linking.openURL(price.sourceUrl!)} style={styles.source}>
+            <Text style={styles.sourceText}>Відкрити товар</Text>
+            <Icon name="external" size={14} color={colors.primary} />
+          </Pressable>
+        ) : null}
+      </View>
+      <View style={styles.priceRowSide}>
+        <Text style={[type.price, unavailable && styles.unavailable]}>{formatPrice(activePrice(price))}</Text>
+        {hasDiscount ? <Text style={styles.oldPrice}>{formatPrice(numberPrice(price.price))}</Text> : null}
+        <View style={styles.badges}>
+          {unavailable ? <Badge label="Немає в наявності" tone="caution" /> : null}
+          {isLowest ? <Badge label="Найнижча" tone="primary" /> : null}
+          {hasDiscount ? <Badge label="Акція" tone="deal" /> : null}
+        </View>
+      </View>
+    </View>
+  );
+}
 
 export function ProductDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ProductDetails">>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { width } = useWindowDimensions();
+  const addToCart = useAddToCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
-  const [alternatives, setAlternatives] = useState<any[]>([]);
+  const [alternatives, setAlternatives] = useState<Alternative[]>([]);
+  const [failed, setFailed] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    api.product(route.params.productId).then(setProduct).catch((error) => Alert.alert("Товар", error.message));
+  const load = useCallback(() => {
+    setFailed(false);
+    api.product(route.params.productId).then(setProduct).catch(() => setFailed(true));
     api.marketPrices(route.params.productId).then(setMarketPrices).catch(() => setMarketPrices([]));
     api.alternatives(route.params.productId).then(setAlternatives).catch(() => setAlternatives([]));
   }, [route.params.productId]);
 
-  async function addToCart() {
+  useEffect(() => { load(); }, [load]);
+
+  async function onAdd() {
     if (!product) return;
-    let listId = await AsyncStorage.getItem("activeListId");
-    if (!listId) {
-      const list = await api.createList("Мій кошик");
-      listId = list.id;
-      await AsyncStorage.setItem("activeListId", listId);
-    }
-    try {
-      await api.addItem(listId, product.id, 1);
-    } catch (error) {
-      const list = await api.createList("Мій кошик");
-      listId = list.id;
-      await AsyncStorage.setItem("activeListId", listId);
-      await api.addItem(listId, product.id, 1);
-    }
-    Alert.alert("Додано", `${product.name} додано в кошик`);
+    setAdding(true);
+    await addToCart(product);
+    setAdding(false);
   }
 
-  if (!product) return <View style={styles.container}><Text>Завантаження...</Text></View>;
+  if (failed && !product) return <View style={styles.centered}><ErrorState onRetry={load} /></View>;
+  if (!product) return <View style={styles.loading}><View style={contentWidth}><SkeletonList count={3} label="Завантаження товару" /></View></View>;
 
   const latest = marketPrices.length ? marketPrices : latestByStore(product.prices);
+  const { exact, similar } = splitMarketPrices(latest);
+  const available = exact.filter((price) => price.isAvailable);
+  const values = available.map(activePrice);
+  const lowest = values.length ? Math.min(...values) : null;
+  const average = values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100 : null;
+  const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(price.dateCollected) > +new Date(date) ? price.dateCollected : date), null);
+
   const history = (product.prices || []).slice(-8);
-  const chartData = history.length ? history.map(activePrice) : [0];
-  const imageUrl = productImageForBestPrice(product);
-  const currentPrices = latest.filter((price) => price.isAvailable).map(activePrice);
-  const lowestPrice = currentPrices.length ? Math.min(...currentPrices) : null;
-  const averagePrice = currentPrices.length ? Math.round((currentPrices.reduce((sum, price) => sum + price, 0) / currentPrices.length) * 100) / 100 : 0;
+  const distinctDates = new Set(history.map((price) => price.dateCollected.slice(0, 10))).size;
+  const chartWidth = Math.min(width, layout.maxContent) - spacing.lg * 2 - spacing.lg * 2 - 2;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.image} /> : null}
-      <Text style={styles.category}>{product.category}</Text>
-      <Text style={styles.title}>{product.name}</Text>
-      <Text style={styles.meta}>{product.brand} · {product.volume} · {product.unit}</Text>
-      <View style={styles.summary}>
-        <Text style={styles.summaryText}>Найнижча: {lowestPrice ?? "немає"} грн</Text>
-        <Text style={styles.summaryText}>Середня: {averagePrice || "немає"} грн</Text>
-      </View>
-      <PrimaryButton title="Додати в кошик" onPress={addToCart} />
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={contentWidth}>
+        <ProductImage uri={productImageForBestPrice(product)} height={Math.min(220, width * 0.55)} label={product.name} />
+        <Text style={[type.label, styles.category]}>{product.category}</Text>
+        <Text accessibilityRole="header" style={[type.title, styles.title]}>{product.name}</Text>
+        <Text style={type.small}>{product.brand} · {product.volume} · {product.unit}</Text>
 
-      <Text style={styles.section}>Ціни в магазинах</Text>
-      {latest.map((price) => {
-        const matchedProduct = "product" in price ? (price as MarketPrice).product : product;
-        const isSimilar = "matchType" in price && price.matchType === "similar";
-        return (
-        <View key={price.id} style={styles.priceRow}>
-          <View>
-            <Text style={styles.store}>{price.store.name}</Text>
-            {isSimilar ? <Text style={styles.similarName} numberOfLines={2}>Схожий товар: {matchedProduct.name}</Text> : null}
-            <Text style={styles.date}>{new Date(price.dateCollected).toLocaleDateString()}</Text>
-            {price.sourceUrl ? (
-              <Pressable onPress={() => Linking.openURL(price.sourceUrl!)}>
-                <Text style={styles.sourceLink}>Відкрити товар</Text>
-              </Pressable>
+        <Card style={styles.summary}>
+          <View style={styles.summaryRow}>
+            <View style={styles.flex}>
+              <Text style={type.label}>Найнижча ціна в базі</Text>
+              <Text style={type.priceLarge}>{lowest !== null ? formatPrice(lowest) : "Немає"}</Text>
+            </View>
+            {average !== null && available.length > 1 ? (
+              <View style={styles.summaryAverage}>
+                <Text style={type.label}>Середня</Text>
+                <Text style={type.price}>{formatPrice(average)}</Text>
+              </View>
             ) : null}
           </View>
-          <View style={{ alignItems: "flex-end" }}>
-            <Text style={styles.price}>{activePrice(price)} грн</Text>
-            {isSimilar ? <Text style={styles.similarBadge}>Схожий</Text> : null}
-            {price.discountPrice ? <Text style={styles.discount}>Акція</Text> : null}
-          </View>
-        </View>
-        );
-      })}
+          <Text style={styles.summaryBasis}>
+            {available.length === 0
+              ? "Цін на цей самий товар немає."
+              : available.length === 1
+                ? "Дані лише з 1 магазину, тому порівняти немає з чим."
+                : `Дані з ${countLabel(available.length, "магазину", "магазинів", "магазинів")}. Схожі товари не враховано.`}
+          </Text>
+          <PrimaryButton title="Додати в кошик" icon="basket" loading={adding} onPress={onAdd} />
+        </Card>
 
-      <Text style={styles.section}>Історія ціни</Text>
-      <LineChart
-        data={{ labels: history.map((_, index) => String(index + 1)), datasets: [{ data: chartData }] }}
-        width={Dimensions.get("window").width - 32}
-        height={190}
-        yAxisSuffix="₴"
-        chartConfig={{ backgroundColor: "#fff", backgroundGradientFrom: "#fff", backgroundGradientTo: "#fff", decimalPlaces: 0, color: () => "#116a43", labelColor: () => "#60736b" }}
-        bezier
-        style={styles.chart}
-      />
+        <FreshnessNotice collectedAt={newest} />
 
-      <Text style={styles.section}>Схожі дешевші товари</Text>
-      {alternatives.length ? alternatives.map((item) => (
-        <View key={item.product.id} style={styles.alt}>
-          <Text style={styles.store}>{item.product.name}</Text>
-          <Text style={styles.discount}>Економія {item.saveAmount} грн</Text>
-        </View>
-      )) : <Text style={styles.empty}>Дешевших аналогів поки не знайдено.</Text>}
+        <SectionHeader title="Ціни в магазинах" subtitle="Цей самий товар" />
+        {exact.length ? (
+          <Card style={styles.listCard}>
+            {exact.map((price, index) => (
+              <PriceRow key={price.id} price={price} showDivider={index > 0} isLowest={available.length > 1 && price.isAvailable && activePrice(price) === lowest} />
+            ))}
+          </Card>
+        ) : (
+          <Notice text="Для цього товару немає цін у жодному магазині." />
+        )}
+
+        {similar.length ? (
+          <>
+            <SectionHeader title="Схожі товари в інших магазинах" />
+            <Notice
+              tone="similar"
+              icon="similar"
+              title="Це інші товари"
+              text="Система знайшла їх автоматично й може помилятися: склад, обсяг чи навіть вид продукту можуть відрізнятися. Ціни не враховані в мінімумі."
+            />
+            <Card style={[styles.listCard, styles.similarCard]}>
+              {similar.map((price, index) => (
+                <PriceRow key={price.id} price={price} showDivider={index > 0} productName={price.product.name} />
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        <SectionHeader title="Історія ціни" />
+        {distinctDates >= 2 ? (
+          <Card style={styles.chartCard}>
+            <LineChart
+              data={{ labels: history.map((_, index) => String(index + 1)), datasets: [{ data: history.map(activePrice) }] }}
+              width={chartWidth}
+              height={190}
+              yAxisSuffix=" ₴"
+              withShadow={false}
+              chartConfig={{ backgroundGradientFrom: colors.surface, backgroundGradientTo: colors.surface, decimalPlaces: 0, color: () => colors.primary, labelColor: () => colors.muted }}
+            />
+          </Card>
+        ) : (
+          <Notice tone="neutral" icon="info" text={distinctDates === 1 ? "Ціни зібрано лише за одну дату, тому динаміку поки показати неможливо." : "Історії цін поки немає."} />
+        )}
+
+        <SectionHeader title="Схожі дешевші товари" subtitle="Інші товари. Порівняйте склад та обсяг" />
+        {alternatives.length ? (
+          <Card style={styles.listCard}>
+            {alternatives.map((item, index) => (
+              <Pressable
+                key={item.product.id}
+                accessibilityRole="link"
+                onPress={() => navigation.push("ProductDetails", { productId: item.product.id })}
+                style={({ pressed }) => [styles.altRow, index > 0 && styles.divider, pressed && styles.pressed]}
+              >
+                <View style={styles.flex}>
+                  <Text style={type.bodyStrong} numberOfLines={2}>{item.product.name}</Text>
+                  <Text style={type.small}>Дешевше на {formatPrice(item.saveAmount)} за даними на дату збору</Text>
+                </View>
+                <Icon name="chevronRight" size={18} color={colors.muted} />
+              </Pressable>
+            ))}
+          </Card>
+        ) : (
+          <Text style={[type.body, styles.emptyText]}>Дешевших схожих товарів у базі не знайдено.</Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f7fbf9" },
-  content: { padding: 16 },
-  image: { height: 210, borderRadius: 8, backgroundColor: "#e7f3ee" },
-  category: { marginTop: 14, color: "#4a7c68", fontWeight: "700" },
-  title: { color: "#10251c", fontSize: 26, fontWeight: "900", marginTop: 3 },
-  meta: { color: "#60736b", marginTop: 4, marginBottom: 14 },
-  summary: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#e7f3ee", padding: 12, borderRadius: 8, marginBottom: 12 },
-  summaryText: { color: "#0d5f3c", fontWeight: "800" },
-  section: { fontSize: 18, fontWeight: "800", color: "#17231e", marginTop: 22, marginBottom: 10 },
-  priceRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#fff", borderColor: "#e4ece8", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  store: { color: "#17231e", fontWeight: "800" },
-  similarName: { color: "#60736b", marginTop: 4, maxWidth: 210, lineHeight: 17 },
-  date: { color: "#60736b", marginTop: 2 },
-  sourceLink: { color: "#0e7a43", fontWeight: "800", marginTop: 6 },
-  price: { color: "#0e7a43", fontWeight: "900", fontSize: 16 },
-  similarBadge: { color: "#0e7a43", backgroundColor: "#e7f3ee", overflow: "hidden", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
-  discount: { color: "#0e7a43", backgroundColor: "#dff5e9", overflow: "hidden", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
-  chart: { borderRadius: 8 },
-  alt: { backgroundColor: "#fff", borderColor: "#e4ece8", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
-  empty: { color: "#60736b" }
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.lg, paddingBottom: spacing.xxl },
+  centered: { flex: 1, justifyContent: "center", backgroundColor: colors.background, padding: spacing.lg },
+  loading: { flex: 1, backgroundColor: colors.background, padding: spacing.lg },
+  flex: { flex: 1, minWidth: 0 },
+  pressed: { opacity: 0.75 },
+  category: { marginTop: spacing.lg },
+  title: { marginTop: 2, marginBottom: 2 },
+  summary: { marginTop: spacing.lg, marginBottom: spacing.md },
+  summaryRow: { flexDirection: "row", gap: spacing.lg },
+  summaryAverage: { alignItems: "flex-end" },
+  summaryBasis: { ...type.small, marginTop: spacing.xs, marginBottom: spacing.md },
+  listCard: { paddingVertical: 0 },
+  similarCard: { marginTop: spacing.sm, borderColor: colors.similarSoft, borderWidth: 2 },
+  chartCard: { padding: spacing.lg, borderRadius: radii.lg },
+  priceRow: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
+  divider: { borderTopWidth: 1, borderTopColor: colors.border },
+  priceRowMain: { flex: 1, minWidth: 0, gap: 2 },
+  priceRowSide: { alignItems: "flex-end", gap: 2 },
+  badges: { alignItems: "flex-end", gap: spacing.xs, marginTop: 2 },
+  oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
+  unavailable: { color: colors.muted },
+  similarName: { ...type.small, color: colors.similar, fontWeight: "500" },
+  source: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: layout.minTouch, alignSelf: "flex-start" },
+  sourceText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  altRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 60, paddingVertical: spacing.md },
+  emptyText: { color: colors.textSoft }
 });

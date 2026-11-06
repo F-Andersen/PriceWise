@@ -1,42 +1,87 @@
-import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useCallback, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { contentWidth, ErrorState, PageTitle, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList } from "../types";
+import { countLabel, formatDate } from "../utils/prices";
+import { colors, radii, spacing, type } from "../utils/theme";
 
 export function ProfileScreen() {
   const { email, signOut } = useAuth();
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingList[]>([]);
-  useFocusEffect(useCallback(() => { api.lists().then(setLists).catch((error) => Alert.alert("Профіль", error.message)); }, []));
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  const load = useCallback(() => {
+    api.lists()
+      .then((result) => {
+        setLists(result);
+        setStatus("ready");
+      })
+      .catch(() => setStatus((current) => (current === "ready" ? current : "error")));
+  }, []);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function openList(list: ShoppingList) {
+    await AsyncStorage.setItem("activeListId", list.id);
+    navigation.navigate("Cart" as never);
+  }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Профіль</Text>
-      <Text style={styles.email}>{email}</Text>
-      <Text style={styles.section}>Збережені кошики</Text>
-      <FlatList
-        data={lists}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.list}>
-            <Text style={styles.name}>{item.title}</Text>
-            <Text style={styles.meta}>{item.items.length} товарів · {new Date(item.createdAt).toLocaleDateString()}</Text>
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      data={status === "ready" ? lists : []}
+      keyExtractor={(item) => item.id}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={
+        <View style={contentWidth}>
+          <PageTitle title="Профіль" subtitle={email ?? undefined} />
+          <SectionHeader title="Збережені кошики" />
+          {status === "loading" ? <SkeletonList count={2} label="Завантаження кошиків" /> : null}
+          {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
+        </View>
+      }
+      renderItem={({ item }) => (
+        <View style={contentWidth}>
+          <Pressable accessibilityRole="link" onPress={() => openList(item)} style={({ pressed }) => [styles.list, pressed && styles.pressed]}>
+            <View style={styles.listBody}>
+              <Text style={type.bodyStrong} numberOfLines={1}>{item.title}</Text>
+              <Text style={type.small}>{countLabel(item.items.length, "товар", "товари", "товарів")} · {formatDate(item.createdAt)}</Text>
+            </View>
+            <Icon name="chevronRight" size={18} color={colors.muted} />
+          </Pressable>
+        </View>
+      )}
+      ListEmptyComponent={
+        status === "ready" ? (
+          <View style={contentWidth}>
+            <StateView icon="basket" title="Кошиків ще немає" text="Перший кошик з'явиться, коли ви додасте товар." />
           </View>
-        )}
-      />
-      <PrimaryButton title="Вийти" variant="secondary" onPress={signOut} />
-    </View>
+        ) : null
+      }
+      ListFooterComponent={
+        <View style={[contentWidth, styles.footer]}>
+          <PrimaryButton title="Вийти" variant="secondary" onPress={signOut} />
+        </View>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f7fbf9", padding: 16 },
-  title: { color: "#10251c", fontSize: 26, fontWeight: "900" },
-  email: { color: "#60736b", marginTop: 4 },
-  section: { fontSize: 18, fontWeight: "900", color: "#17231e", marginTop: 22, marginBottom: 10 },
-  list: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#e4ece8", borderRadius: 8, padding: 12, marginBottom: 8 },
-  name: { color: "#17231e", fontWeight: "800" },
-  meta: { color: "#60736b", marginTop: 4 }
+  container: { flex: 1, backgroundColor: colors.background },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
+  pressed: { opacity: 0.75 },
+  list: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  listBody: { flex: 1, minWidth: 0 },
+  footer: { marginTop: spacing.lg }
 });

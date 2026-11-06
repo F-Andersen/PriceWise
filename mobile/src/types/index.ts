@@ -47,6 +47,15 @@ export type ShoppingList = {
   items: ShoppingListItem[];
 };
 
+export type ComparisonItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  lineTotal: number;
+  hasDiscount: boolean;
+};
+
 export type ComparisonResult = {
   store: Store;
   totalPrice: number;
@@ -55,6 +64,21 @@ export type ComparisonResult = {
   missingProducts: string[];
   difference: number;
   isBest: boolean;
+  items?: ComparisonItem[];
+};
+
+export type Recommendation = {
+  type: string;
+  message: string;
+  saveAmount?: number;
+  product?: Product;
+  alternative?: Product;
+  store?: Store;
+};
+
+export type Alternative = {
+  product: Product;
+  saveAmount: number;
 };
 
 export type Recipe = {

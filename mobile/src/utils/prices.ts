@@ -1,4 +1,4 @@
-import { Price, Product } from "../types";
+import { MarketPrice, Price, Product } from "../types";
 
 export function numberPrice(value: string | number | null | undefined) {
   if (value === null || value === undefined) return 0;
@@ -38,4 +38,80 @@ export function averageLatestPrice(product: Product) {
   const prices = latestByStore(product.prices).filter((price) => price.isAvailable);
   if (!prices.length) return 0;
   return Math.round((prices.reduce((sum, price) => sum + activePrice(price), 0) / prices.length) * 100) / 100;
+}
+
+export function storeCount(product: Product) {
+  return latestByStore(product.prices).filter((price) => price.isAvailable).length;
+}
+
+/** Точні збіги окремо від схожих товарів: схожі не беруть участі в мінімумі й середній ціні. */
+export function splitMarketPrices(prices: Array<Price | MarketPrice>) {
+  const exact: Array<Price | MarketPrice> = [];
+  const similar: MarketPrice[] = [];
+  for (const price of prices) {
+    if ("matchType" in price && price.matchType === "similar") similar.push(price);
+    else exact.push(price);
+  }
+  return { exact, similar };
+}
+
+export function formatPrice(value: number) {
+  const fixed = Number.isInteger(value) ? String(value) : value.toFixed(2);
+  return `${fixed.replace(".", ",")} грн`;
+}
+
+export function formatDate(value: string | Date) {
+  const date = new Date(value);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}.${month}.${date.getFullYear()}`;
+}
+
+export function daysSince(value: string | Date, now = new Date()) {
+  return Math.max(0, Math.floor((+now - +new Date(value)) / 86400000));
+}
+
+/** Ціни, зібрані раніше за цей поріг, показуються як застарілі. */
+export const STALE_AFTER_DAYS = 7;
+
+export function isStale(value: string | Date) {
+  return daysSince(value) > STALE_AFTER_DAYS;
+}
+
+export function plural(count: number, one: string, few: string, many: string) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+export function countLabel(count: number, one: string, few: string, many: string) {
+  return `${count} ${plural(count, one, few, many)}`;
+}
+
+export function ageLabel(value: string | Date) {
+  const days = daysSince(value);
+  if (days === 0) return "сьогодні";
+  if (days === 1) return "учора";
+  return `${countLabel(days, "день", "дні", "днів")} тому`;
+}
+
+/** Найновіша дата збору серед усіх цін товарів. */
+export function latestCollectedAt(products: Product[]) {
+  let latest: string | null = null;
+  for (const product of products) {
+    for (const price of product.prices || []) {
+      if (!latest || +new Date(price.dateCollected) > +new Date(latest)) latest = price.dateCollected;
+    }
+  }
+  return latest;
+}
+
+export function storesWithPrices(products: Product[]) {
+  const ids = new Set<string>();
+  for (const product of products) {
+    for (const price of product.prices || []) ids.add(price.storeId);
+  }
+  return ids.size;
 }

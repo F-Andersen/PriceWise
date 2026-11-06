@@ -1,50 +1,66 @@
 import { useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { Notice } from "../components/ui";
 import { useAuth } from "../services/AuthContext";
-import { colors, shadow } from "../utils/theme";
+import { colors, radii, spacing, type } from "../utils/theme";
 
 export function AuthScreen() {
   const { signIn } = useAuth();
   const [email, setEmail] = useState("demo@example.com");
   const [password, setPassword] = useState("password123");
-  const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState<"login" | "register" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit(mode: "login" | "register") {
     try {
-      setLoading(true);
+      setPending(mode);
+      setError(null);
       await signIn(email, password, mode);
-    } catch (error) {
-      Alert.alert("Помилка", error instanceof Error ? error.message : "Не вдалося увійти");
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : "";
+      setError(message === "Failed to fetch" || !message ? "Немає зв'язку із сервером. Перевірте, чи запущено API, і спробуйте ще раз." : message);
     } finally {
-      setLoading(false);
+      setPending(null);
     }
   }
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.container}>
-      <View style={styles.brandMark}>
-        <Text style={styles.brandMarkText}>₴</Text>
-      </View>
-      <View style={styles.panel}>
-        <Text style={styles.title}>Price Decision MVP</Text>
-        <Text style={styles.subtitle}>Порівняння вартості кошика між магазинами</Text>
-        <TextInput style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" placeholder="Email" />
-        <TextInput style={styles.input} value={password} onChangeText={setPassword} secureTextEntry placeholder="Пароль" />
-        <PrimaryButton title="Увійти" loading={loading} onPress={() => submit("login")} />
-        <View style={{ height: 10 }} />
-        <PrimaryButton title="Зареєструватися" variant="secondary" loading={loading} onPress={() => submit("register")} />
+      <View style={styles.inner}>
+        <View style={styles.brandRow}>
+          <View style={styles.brandMark}><Icon name="basket" size={22} color={colors.onPrimary} /></View>
+          <Text style={styles.brand}>PriceWise</Text>
+        </View>
+        <Text accessibilityRole="header" style={type.display}>Порівнюйте кошик, а не обіцянки</Text>
+        <Text style={[type.body, styles.subtitle]}>Шукайте товари, складайте кошик і дивіться, що відомо про ціни в магазинах.</Text>
+
+        <Text nativeID="email-label" style={styles.label}>Email</Text>
+        <TextInput accessibilityLabel="Email" autoComplete="email" style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+        <Text nativeID="password-label" style={styles.label}>Пароль</Text>
+        <TextInput accessibilityLabel="Пароль" autoComplete="password" style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
+
+        {error ? <View style={styles.error}><Notice icon="alert" title="Не вдалося увійти" text={error} /></View> : null}
+
+        <View style={styles.actions}>
+          <PrimaryButton title="Увійти" loading={pending === "login"} disabled={Boolean(pending)} onPress={() => submit("login")} />
+          <PrimaryButton title="Зареєструватися" variant="secondary" loading={pending === "register"} disabled={Boolean(pending)} onPress={() => submit("register")} />
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", padding: 22 },
-  brandMark: { alignSelf: "center", width: 66, height: 66, borderRadius: 18, backgroundColor: colors.primaryDark, alignItems: "center", justifyContent: "center", marginBottom: 16 },
-  brandMarkText: { color: "#fff", fontSize: 34, fontWeight: "900" },
-  panel: { ...shadow, backgroundColor: colors.surface, borderRadius: 16, padding: 20, borderWidth: 1, borderColor: colors.border },
-  title: { fontSize: 27, fontWeight: "900", color: colors.text },
-  subtitle: { color: colors.muted, marginTop: 6, marginBottom: 22, lineHeight: 20 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 13, marginBottom: 12, backgroundColor: colors.background, color: colors.text }
+  container: { flex: 1, backgroundColor: colors.background, justifyContent: "center", padding: spacing.xl },
+  inner: { width: "100%", maxWidth: 420, alignSelf: "center" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.xl },
+  brandMark: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: colors.primary, alignItems: "center", justifyContent: "center" },
+  brand: { ...type.heading, color: colors.primaryDark },
+  subtitle: { color: colors.textSoft, marginTop: spacing.sm, marginBottom: spacing.xl },
+  label: { ...type.label, color: colors.textSoft, marginBottom: spacing.xs },
+  input: { ...type.body, minHeight: 50, paddingHorizontal: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong, borderRadius: radii.md },
+  error: { marginBottom: spacing.md },
+  actions: { gap: spacing.sm, marginTop: spacing.xs }
 });
