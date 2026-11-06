@@ -6,7 +6,7 @@ import { recordPriceObservation } from "./priceHistory";
 import { BOT_HEADERS, REQUEST_DELAY_MS, ensureZakazStores, sleep, type ZakazStoreConfig } from "./zakazStores";
 
 /** Product fields we read from the page's embedded Next.js state. */
-type ZakazProduct = {
+export type ZakazProduct = {
   ean: string;
   title: string;
   price: number; // kopecks
@@ -37,7 +37,7 @@ export type CatalogSyncOptions = {
   storeNames?: string[];
 };
 
-function extractZakazProduct(html: string): ZakazProduct | null {
+export function extractZakazProduct(html: string): ZakazProduct | null {
   const match = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (!match?.[1]) return null;
   try {
@@ -78,13 +78,13 @@ async function fetchZakazProduct(url: string, expectedGtin14: string | null): Pr
  * "2026-11-10" -> the end of that day in Kyiv. Uses UTC+2 (winter time), so in
  * summer the promotion is treated as ending one hour later than it really does.
  */
-function promoEnd(dueDate?: string | null) {
+export function promoEnd(dueDate?: string | null) {
   if (!dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null;
   const date = new Date(`${dueDate}T23:59:59+02:00`);
   return Number.isNaN(+date) ? null : date;
 }
 
-function pricesFrom(product: ZakazProduct) {
+export function pricesFrom(product: ZakazProduct) {
   const price = roundMoney(product.price / 100);
   const old = product.discount?.status && product.discount.old_price ? roundMoney(product.discount.old_price / 100) : null;
   const oldPrice = old && old > price && old < price * 5 ? old : null;
