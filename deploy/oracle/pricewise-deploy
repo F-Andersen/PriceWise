@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Install as root:root 0755 at /usr/local/sbin/pricewise-deploy.
+# The deploy account may run this exact command with no arguments via sudo.
+set -Eeuo pipefail
+umask 077
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+repo=/opt/pricewise/app
+compose_file=/etc/pricewise/compose.yml
+env_file=/etc/pricewise/production.env
+compose=(docker compose -p pricewise -f "$compose_file" --env-file "$env_file")
+
+if [[ $# -ne 0 ]] || ! IFS= read -r target_sha || [[ ! $target_sha =~ ^[0-9a-f]{40}$ ]]; then
+  echo 'A single 40-character commit SHA is required on stdin.' >&2
+  exit 64
+fi
+
+exec 9>/run/lock/pricewise-deploy.lock
+flock -n 9 || { echo 'Another PriceWise deployment is running.' >&2; exit 75; }
+
+[[ -d $repo/.git && -f $compose_file && -f $env_file ]] || {
+  echo 'PriceWise deployment files are missing.' >&2
+  exit 1
+}
+[[ $(stat -c %U "$compose_file") == root && $(stat -c %U "$env_file") == root ]] || {
+  echo 'Production configuration must be root-owned.' >&2
+  exit 1
+}
+
+as_ubuntu() { runuser -u ubuntu -- git -C "$repo" "$@"; }
+
+[[ $(as_ubuntu remote get-url origin) == https://github.com/F-Andersen/PriceWise.git ]] || {
+  echo 'Unexpected Git origin.' >&2
+  exit 1
+}
+as_ubuntu diff --quiet
+as_ubuntu diff --cached --quiet
+previous_sha=$(as_ubuntu rev-parse HEAD)
+
+as_ubuntu fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+main_sha=$(as_ubuntu rev-parse refs/remotes/origin/main)
+[[ $target_sha == "$main_sha" ]] || {
+  echo 'Requested commit is no longer the tip of main.' >&2
+  exit 1
+}
+
+wait_for_health() {
+  for _ in {1..18}; do
+    if curl --fail --silent --output /dev/null --max-time 5 http://127.0.0.1:14001/api/health && \
+       curl --fail --silent --output /dev/null --max-time 5 http://127.0.0.1:18084/ && \
+       curl --fail --silent --output /dev/null --max-time 10 https://pricewise.130.61.111.249.sslip.io/api/health; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+restore_checkout() {
+  echo "Deployment failed before container update; restoring code at $previous_sha" >&2
+  as_ubuntu checkout --detach "$previous_sha" || return 1
+  wait_for_health || return 1
+  echo 'Previous containers are still healthy.' >&2
+}
+
+rollback() {
+  echo "Deployment failed; restoring code and containers at $previous_sha" >&2
+  as_ubuntu checkout --detach "$previous_sha" || return 1
+  "${compose[@]}" up -d --build --wait --wait-timeout 180 || return 1
+  wait_for_health || return 1
+  echo 'Previous containers restored. Database migrations were not reversed.' >&2
+}
+
+echo 'Creating a database backup...'
+systemctl start pricewise-backup.service
+
+if [[ $previous_sha != "$target_sha" ]]; then
+  as_ubuntu checkout --detach "$target_sha"
+fi
+
+if ! "${compose[@]}" config --quiet; then
+  restore_checkout || echo 'Previous checkout or containers need inspection.' >&2
+  exit 1
+fi
+if ! "${compose[@]}" build api web; then
+  restore_checkout || echo 'Previous checkout or containers need inspection.' >&2
+  exit 1
+fi
+if ! "${compose[@]}" up -d --no-build --wait --wait-timeout 180; then
+  rollback || echo 'Automatic container rollback failed; inspect the server.' >&2
+  exit 1
+fi
+
+if ! wait_for_health; then
+  rollback || echo 'Automatic container rollback failed; inspect the server.' >&2
+  exit 1
+fi
+
+echo "PriceWise deployed: $target_sha"
