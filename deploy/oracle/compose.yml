@@ -1,0 +1,62 @@
+# Copy to /etc/pricewise/compose.yml and keep it root-owned.
+# This fixed server configuration is deliberately outside the Git checkout.
+name: pricewise
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: price_monitoring
+      POSTGRES_USER: pricewise
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pricewise -d price_monitoring"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: /opt/pricewise/app/backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      DATABASE_URL: postgresql://pricewise:${POSTGRES_PASSWORD}@db:5432/price_monitoring?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PRICE_SYNC_ENABLED: ${PRICE_SYNC_ENABLED:-true}
+      PRICE_SYNC_TIME: ${PRICE_SYNC_TIME:-06:00}
+      PRICE_HISTORY_DAYS: ${PRICE_HISTORY_DAYS:-730}
+      TZ: ${TZ:-Europe/Kyiv}
+    ports:
+      - "127.0.0.1:14001:4001"
+
+  web:
+    build:
+      context: /opt/pricewise/app
+      dockerfile: deploy/web.Dockerfile
+      args:
+        EXPO_PUBLIC_API_URL: /api
+        EXPO_PUBLIC_DEMO_LOGIN: ${DEMO_LOGIN:-false}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      SITE_ADDRESS: :80
+    ports:
+      - "127.0.0.1:18084:80"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
