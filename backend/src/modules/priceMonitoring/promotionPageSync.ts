@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma";
 import { roundMoney } from "../../utils/money";
+import { classifyBarcode } from "./gtin";
+import { BOT_HEADERS, REQUEST_DELAY_MS, ensureZakazStores, sleep, zakazStores } from "./zakazStores";
 
 type PromotionSource = {
   storeName: string;
   url: string;
-  kind: "zakaz" | "atb";
+  host: string;
 };
 
 type ParsedPromotion = {
@@ -21,12 +23,13 @@ type ParsedPromotion = {
   oldPrice: number;
 };
 
-const promotionSources: PromotionSource[] = [
-  { storeName: "Novus", url: "https://novus.zakaz.ua/uk/promotions/", kind: "zakaz" },
-  { storeName: "METRO", url: "https://metro.zakaz.ua/uk/promotions/", kind: "zakaz" },
-  { storeName: "Ашан", url: "https://auchan.zakaz.ua/uk/promotions/", kind: "zakaz" },
-  { storeName: "АТБ", url: "https://www.atbmarket.com/promo/economy", kind: "atb" }
-];
+// Only zakaz.ua storefronts: their robots.txt allows promotion pages. АТБ returns
+// 403 to bots, so it is no longer collected.
+const promotionSources: PromotionSource[] = zakazStores.map((store) => ({
+  storeName: store.name,
+  url: `https://${store.host}/uk/custom-categories/promotions/`,
+  host: store.host
+}));
 
 const blockedProductWords = [
   "алкоголь",
@@ -157,64 +160,41 @@ function parseZakazPromotions(html: string, baseUrl: string, limit: number): Par
   return promotions;
 }
 
-function parseAtbPromotions(html: string, baseUrl: string, limit: number): ParsedPromotion[] {
-  const promotions: ParsedPromotion[] = [];
-  const cardRegex = /<article\b[^>]*>([\s\S]*?)<\/article>/gi;
-
-  let match: RegExpExecArray | null;
-  while ((match = cardRegex.exec(html)) && promotions.length < limit) {
-    const body = match[1] ?? "";
-    const href = firstMatch(body, [/<a[^>]+href=["']([^"']*\/product\/[^"']+)["']/i]);
-    const name = firstMatch(body, [
-      /<a[^>]+href=["'][^"']*\/product\/[^"']+["'][^>]*>([^<]{8,})</i,
-      /<img[^>]+alt=["']([^"']+)["']/i
-    ]);
-    const imageUrl = firstMatch(body, [/<img[^>]+src=["']([^"']+)["']/i]);
-    const current = parseNumber(firstMatch(body, [/([0-9]+(?:[.,][0-9]+)?)\s*грн\/шт/i]));
-    const oldPrice = parseNumber(firstMatch(body, [/грн\/шт[\s\S]{0,160}?([0-9]+(?:[.,][0-9]+)?)/i]));
-
-    if (!href || !name || !imageUrl || !current || !oldPrice || current >= oldPrice) continue;
-    if (!isAllowedProduct(name)) continue;
-
-    const sourceUrl = absoluteUrl(href, baseUrl);
-    promotions.push({
-      name,
-      brand: brandFromName(name),
-      category: categoryFromName(name),
-      barcode: compactBarcode(sourceUrl, sourceUrl),
-      unit: "шт",
-      volume: "1 шт",
-      imageUrl: absoluteUrl(imageUrl, baseUrl),
-      sourceUrl,
-      price: roundMoney(current),
-      oldPrice: roundMoney(oldPrice)
-    });
-  }
-
-  return promotions;
-}
-
 async function fetchHtml(url: string) {
   const response = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; PriceWiseBot/0.1; +https://github.com/F-Andersen/PriceWise)",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      "Accept-Language": "uk-UA,uk;q=0.9,en;q=0.6"
-    }
+    headers: BOT_HEADERS
   });
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
 }
 
-async function upsertPromotion(product: ParsedPromotion, storeId: string) {
+/**
+ * Finds the catalogue product for a promotion tile.
+ * Global GTINs match across stores (in either 13- or 14-digit form). Store-internal
+ * codes (weighed goods) only match the same store page; otherwise they get a
+ * store-prefixed barcode so two stores' internal codes never merge into one product.
+ */
+async function resolveBarcode(product: ParsedPromotion, host: string) {
+  const { kind, gtin14 } = classifyBarcode(product.barcode);
+  if (kind === "global" && gtin14) {
+    const variants = Array.from(new Set([product.barcode, gtin14, gtin14.replace(/^0/, "")]));
+    const existing = await prisma.product.findFirst({ where: { barcode: { in: variants } } });
+    return existing?.barcode ?? gtin14;
+  }
+  const source = await prisma.productSource.findUnique({ where: { sourceUrl: product.sourceUrl }, include: { product: true } });
+  return source?.product.barcode ?? `${host}:${product.barcode}`;
+}
+
+async function upsertPromotion(product: ParsedPromotion, storeId: string, host: string, collectedAt: Date) {
+  const barcode = await resolveBarcode(product, host);
   const createdProduct = await prisma.product.upsert({
-    where: { barcode: product.barcode },
+    where: { barcode },
     create: {
       name: product.name,
       brand: product.brand,
       category: product.category,
-      barcode: product.barcode,
+      barcode,
       unit: product.unit,
       volume: product.volume,
       imageUrl: product.imageUrl,
@@ -248,10 +228,10 @@ async function upsertPromotion(product: ParsedPromotion, storeId: string) {
     data: {
       productId: createdProduct.id,
       storeId,
-      price: new Prisma.Decimal(product.oldPrice),
+      price: new Prisma.Decimal(product.price),
       oldPrice: new Prisma.Decimal(product.oldPrice),
       discountPrice: new Prisma.Decimal(product.price),
-      dateCollected: new Date(),
+      dateCollected: collectedAt,
       isAvailable: true,
       imageUrl: product.imageUrl,
       sourceUrl: product.sourceUrl
@@ -261,23 +241,23 @@ async function upsertPromotion(product: ParsedPromotion, storeId: string) {
 
 export async function syncPromotionPages(limitPerStore = 12) {
   const results = [];
+  const collectedAt = new Date();
+  const stores = await ensureZakazStores();
 
-  for (const source of promotionSources) {
-    const store = await prisma.store.findFirst({ where: { name: source.storeName } });
+  for (const [index, source] of promotionSources.entries()) {
+    const store = stores.find(({ config }) => config.host === source.host)?.store;
     if (!store) {
       results.push({ store: source.storeName, url: source.url, status: "skipped", reason: "Store not found" });
       continue;
     }
+    if (index > 0) await sleep(REQUEST_DELAY_MS);
 
     try {
       const html = await fetchHtml(source.url);
-      const promotions =
-        source.kind === "zakaz"
-          ? parseZakazPromotions(html, source.url, limitPerStore)
-          : parseAtbPromotions(html, source.url, limitPerStore);
+      const promotions = parseZakazPromotions(html, source.url, limitPerStore);
 
       for (const promotion of promotions) {
-        await upsertPromotion(promotion, store.id);
+        await upsertPromotion(promotion, store.id, source.host, collectedAt);
       }
 
       results.push({ store: source.storeName, url: source.url, status: "created", count: promotions.length });

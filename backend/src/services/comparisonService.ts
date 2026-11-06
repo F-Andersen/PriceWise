@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { activePrice, roundMoney } from "../utils/money";
 
 export async function compareShoppingList(shoppingListId: string) {
@@ -9,7 +10,8 @@ export async function compareShoppingList(shoppingListId: string) {
 
   if (!list) throw new Error("Shopping list not found");
 
-  const stores = await prisma.store.findMany({ orderBy: { name: "asc" } });
+  // Only stores we actually collect prices from take part in the comparison.
+  const stores = await prisma.store.findMany({ where: collectedStoresWhere, orderBy: { name: "asc" } });
   const results = await Promise.all(
     stores.map(async (store) => {
       let totalPrice = 0;

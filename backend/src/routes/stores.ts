@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 
 const router = Router();
 const storeSchema = z.object({
@@ -11,7 +12,8 @@ const storeSchema = z.object({
 });
 
 router.get("/", async (_req, res) => {
-  res.json(await prisma.store.findMany({ orderBy: { name: "asc" } }));
+  // Only stores we collect prices from; АТБ, Сільпо etc. stay in the DB but are hidden.
+  res.json(await prisma.store.findMany({ where: collectedStoresWhere, orderBy: { name: "asc" } }));
 });
 
 router.post("/", async (req, res) => {

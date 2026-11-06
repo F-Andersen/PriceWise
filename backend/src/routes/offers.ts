@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { activePrice, roundMoney, toNumber } from "../utils/money";
 
 const router = Router();
@@ -11,6 +12,7 @@ router.get("/", async (req, res) => {
     where: {
       isAvailable: true,
       storeId,
+      store: collectedStoresWhere,
       OR: [{ discountPrice: { not: null } }, { oldPrice: { not: null } }]
     },
     include: { product: true, store: true },

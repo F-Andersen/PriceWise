@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { activePrice, roundMoney, toNumber } from "../utils/money";
 
 export async function getAlternatives(productId: string) {
@@ -10,7 +11,7 @@ export async function getAlternatives(productId: string) {
 
   const candidates = await prisma.product.findMany({
     where: { category: product.category, id: { not: product.id } },
-    include: { prices: { orderBy: { dateCollected: "desc" }, include: { store: true } } }
+    include: { prices: { where: { store: collectedStoresWhere }, orderBy: { dateCollected: "desc" }, include: { store: true } } }
   });
 
   return candidates
@@ -50,7 +51,7 @@ export async function getShoppingListRecommendations(shoppingListId: string) {
     }
 
     const latestPrices = await prisma.price.findMany({
-      where: { productId: item.productId },
+      where: { productId: item.productId, store: collectedStoresWhere },
       orderBy: { dateCollected: "desc" },
       take: 3,
       include: { store: true }
@@ -88,7 +89,7 @@ export async function getShoppingListRecommendations(shoppingListId: string) {
 
 async function getMinCurrentPrice(productId: string) {
   const prices = await prisma.price.findMany({
-    where: { productId, isAvailable: true },
+    where: { productId, isAvailable: true, store: collectedStoresWhere },
     orderBy: { dateCollected: "desc" },
     include: { store: true }
   });

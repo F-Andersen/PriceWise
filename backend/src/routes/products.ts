@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { getAlternatives } from "../services/recommendationService";
 import { activePrice, toNumber } from "../utils/money";
 
@@ -71,7 +72,7 @@ function latestStorePrices<T extends { storeId: string; dateCollected: Date }>(p
 
 router.get("/", async (_req, res) => {
   const products = await prisma.product.findMany({
-    include: { prices: { include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
   res.json(products);
@@ -89,7 +90,7 @@ router.get("/search", async (req, res) => {
           ]
         }
       : undefined,
-    include: { prices: { include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
   res.json(products);
@@ -98,7 +99,7 @@ router.get("/search", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
-    include: { prices: { include: { store: true }, orderBy: { dateCollected: "desc" } } }
+    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } }
   });
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json(product);
@@ -110,7 +111,7 @@ router.get("/:id/market-prices", async (req, res) => {
 
   const candidates = await prisma.product.findMany({
     where: { category: product.category },
-    include: { prices: { include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
 

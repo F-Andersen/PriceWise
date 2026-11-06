@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../prisma";
+import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { compareShoppingList } from "../services/comparisonService";
 import { getShoppingListRecommendations } from "../services/recommendationService";
 
@@ -26,7 +27,7 @@ router.post("/", async (req: AuthRequest, res) => {
 router.get("/:id", async (req: AuthRequest, res) => {
   const list = await prisma.shoppingList.findFirst({
     where: { id: req.params.id, userId: req.userId },
-    include: { items: { include: { product: { include: { prices: { include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
+    include: { items: { include: { product: { include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
   });
   if (!list) return res.status(404).json({ message: "Shopping list not found" });
   res.json(list);
