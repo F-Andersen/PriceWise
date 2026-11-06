@@ -6,10 +6,16 @@ import { Notice } from "../components/ui";
 import { useAuth } from "../services/AuthContext";
 import { colors, radii, spacing, type } from "../utils/theme";
 
+/**
+ * Demo credentials are prefilled only in development, or in a build made with
+ * EXPO_PUBLIC_DEMO_LOGIN=true (e.g. for a diploma demo). Production shows empty fields.
+ */
+const prefillDemo = __DEV__ || process.env.EXPO_PUBLIC_DEMO_LOGIN === "true";
+
 export function AuthScreen() {
   const { signIn, sessionExpired } = useAuth();
-  const [email, setEmail] = useState("demo@example.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState(prefillDemo ? "demo@example.com" : "");
+  const [password, setPassword] = useState(prefillDemo ? "password123" : "");
   const [pending, setPending] = useState<"login" | "register" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
