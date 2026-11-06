@@ -1,0 +1,25 @@
+# SITE_ADDRESS: your domain (e.g. pricewise.example.com) for automatic HTTPS,
+# or ":80" to serve plain HTTP on the server's IP (no certificate).
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:4001
+	}
+
+	handle {
+		root * /srv
+		# Single-page app: unknown paths fall back to index.html.
+		try_files {path} /index.html
+		file_server
+		@assets path /_expo/* /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+	}
+}

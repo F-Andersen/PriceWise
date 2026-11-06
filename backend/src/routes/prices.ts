@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
 import { importMockPrices } from "../modules/priceImport/mockImporter";
 
@@ -32,14 +33,14 @@ router.get("/history/:productId", async (req, res) => {
   res.json(prices);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   const data = priceSchema.parse(req.body);
   const collectedAt = data.dateCollected || new Date();
   const price = await prisma.price.create({ data: { ...data, dateCollected: collectedAt, lastSeenAt: collectedAt } });
   res.status(201).json(price);
 });
 
-router.post("/import/mock", async (_req, res) => {
+router.post("/import/mock", requireAdmin, async (_req, res) => {
   res.json(await importMockPrices());
 });
 
