@@ -10,7 +10,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
-import { activePrice, countLabel, formatPrice, hasActiveDiscount, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
+import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
@@ -21,7 +21,7 @@ function PriceRow({ price, showDivider, isLowest, productName }: { price: Price 
       <View style={styles.priceRowMain}>
         <Text style={type.bodyStrong}>{price.store.name}</Text>
         {productName ? <Text style={styles.similarName} numberOfLines={2}>{productName}</Text> : null}
-        <PriceDate value={price.dateCollected} />
+        <PriceDate value={checkedAt(price)} />
         {price.sourceUrl ? (
           <Pressable accessibilityRole="link" accessibilityLabel={`Відкрити товар на сайті: ${price.store.name}`} onPress={() => Linking.openURL(price.sourceUrl!)} style={styles.source}>
             <Text style={styles.sourceText}>Відкрити товар</Text>
@@ -78,7 +78,7 @@ export function ProductDetailsScreen() {
   const values = available.map(activePrice);
   const lowest = values.length ? Math.min(...values) : null;
   const average = values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100 : null;
-  const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(price.dateCollected) > +new Date(date) ? price.dateCollected : date), null);
+  const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(checkedAt(price)) > +new Date(date) ? checkedAt(price) : date), null);
 
   const history = (product.prices || []).slice(-8);
   const distinctDates = new Set(history.map((price) => price.dateCollected.slice(0, 10))).size;

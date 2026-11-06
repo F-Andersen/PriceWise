@@ -66,7 +66,11 @@ model Price {
   discountPrice Decimal? @db.Decimal(10, 2)
   /// Last day the discount is valid (end of day, Kyiv time), if the store published it.
   promoEndsAt   DateTime?
+  /// When this price was first seen. A row covers the period until lastSeenAt:
+  /// collections that find the same price only move lastSeenAt forward.
   dateCollected DateTime
+  /// Last collection that confirmed this exact price and availability.
+  lastSeenAt    DateTime
   isAvailable   Boolean  @default(true)
   imageUrl      String?
   sourceUrl     String?
@@ -74,6 +78,7 @@ model Price {
   store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@index([productId, storeId, dateCollected])
+  @@index([lastSeenAt])
 }
 
 model ShoppingList {

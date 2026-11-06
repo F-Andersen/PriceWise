@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../../prisma";
+import { pruneOldPriceHistory } from "./priceHistory";
 import { syncPromotionPages } from "./promotionPageSync";
 import { syncZakazCatalog, type CatalogSyncOptions } from "./zakazCatalogSync";
 import { collectedStoresWhere } from "./zakazStores";
@@ -49,6 +50,15 @@ function releaseLock() {
   fs.rmSync(LOCK_FILE, { force: true });
 }
 
+/**
+ * How long ended price periods are kept (PRICE_HISTORY_DAYS, default 730 = two
+ * years of history for price analysis). 0 keeps everything.
+ */
+export function historyRetentionDays() {
+  const value = Number(process.env.PRICE_HISTORY_DAYS ?? 730);
+  return Number.isFinite(value) && value >= 0 ? value : 730;
+}
+
 export class CollectionAlreadyRunningError extends Error {
   constructor() {
     super("Price collection is already running");
@@ -61,7 +71,8 @@ export async function runPriceCollection(options: PriceCollectionOptions = {}) {
   try {
     const promotions = options.skipPromotions || dryRun ? [] : await syncPromotionPages(options.promoLimit ?? 12);
     const catalogue = await syncZakazCatalog(options);
-    return { promotions, ...catalogue };
+    const prunedRows = dryRun ? 0 : await pruneOldPriceHistory(historyRetentionDays());
+    return { promotions, ...catalogue, prunedRows };
   } finally {
     if (!dryRun) releaseLock();
   }
@@ -71,7 +82,7 @@ export async function runPriceCollection(options: PriceCollectionOptions = {}) {
 export async function lastCollectedAt(): Promise<Date | null> {
   const result = await prisma.price.aggregate({
     where: { store: collectedStoresWhere },
-    _max: { dateCollected: true }
+    _max: { lastSeenAt: true }
   });
-  return result._max.dateCollected;
+  return result._max.lastSeenAt;
 }

@@ -2,6 +2,7 @@ import type { Product, Store } from "@prisma/client";
 import { prisma } from "../../prisma";
 import { roundMoney, toNumber } from "../../utils/money";
 import { classifyBarcode } from "./gtin";
+import { recordPriceObservation } from "./priceHistory";
 import { BOT_HEADERS, REQUEST_DELAY_MS, ensureZakazStores, sleep, type ZakazStoreConfig } from "./zakazStores";
 
 /** Product fields we read from the page's embedded Next.js state. */
@@ -116,19 +117,17 @@ async function recordFound(
     update: { sourceUrl: found.url }
   });
 
-  await prisma.price.create({
-    data: {
-      productId: product.id,
-      storeId: store.id,
-      price,
-      oldPrice,
-      discountPrice,
-      promoEndsAt,
-      dateCollected: collectedAt,
-      isAvailable: inStock,
-      imageUrl,
-      sourceUrl: found.url
-    }
+  await recordPriceObservation({
+    productId: product.id,
+    storeId: store.id,
+    price,
+    oldPrice,
+    discountPrice,
+    promoEndsAt,
+    isAvailable: inStock,
+    imageUrl,
+    sourceUrl: found.url,
+    seenAt: collectedAt
   });
 
   if (!product.imageUrl && imageUrl) {
@@ -145,22 +144,22 @@ async function recordFound(
 async function recordGone(product: Product, store: Store, collectedAt: Date, reason: string, dryRun: boolean): Promise<CatalogSyncRow> {
   const last = await prisma.price.findFirst({
     where: { productId: product.id, storeId: store.id },
-    orderBy: { dateCollected: "desc" }
+    orderBy: [{ dateCollected: "desc" }, { id: "desc" }]
   });
-  if (!last || !last.isAvailable) return { product: product.name, store: store.name, status: "not_found", reason };
+  if (!last) return { product: product.name, store: store.name, status: "not_found", reason };
 
+  // Already marked unavailable: this only confirms it (extends lastSeenAt).
   if (!dryRun) {
-    await prisma.price.create({
-      data: {
-        productId: product.id,
-        storeId: store.id,
-        price: last.price,
-        dateCollected: collectedAt,
-        isAvailable: false,
-        sourceUrl: last.sourceUrl
-      }
+    await recordPriceObservation({
+      productId: product.id,
+      storeId: store.id,
+      price: last.price,
+      isAvailable: false,
+      sourceUrl: last.sourceUrl,
+      seenAt: collectedAt
     });
   }
+  if (!last.isAvailable) return { product: product.name, store: store.name, status: "not_found", reason };
   return { product: product.name, store: store.name, status: "marked_unavailable", price: toNumber(last.price), reason };
 }
 

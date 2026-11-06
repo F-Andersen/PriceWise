@@ -9,6 +9,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Offer, Store } from "../types";
+import { checkedAt } from "../utils/prices";
 import { colors, spacing } from "../utils/theme";
 
 export function OffersScreen() {
@@ -39,7 +40,7 @@ export function OffersScreen() {
     [allOffers, stores]
   );
 
-  const newest = allOffers.reduce<string | null>((latest, offer) => (!latest || +new Date(offer.dateCollected) > +new Date(latest) ? offer.dateCollected : latest), null);
+  const newest = allOffers.reduce<string | null>((latest, offer) => (!latest || +new Date(checkedAt(offer)) > +new Date(latest) ? checkedAt(offer) : latest), null);
 
   return (
     <FlatList

@@ -177,6 +177,7 @@ async function main() {
             oldPrice: 46.9,
             discountPrice: 24.9,
             dateCollected: new Date(),
+            lastSeenAt: new Date(),
             isAvailable: true,
             imageUrl,
             sourceUrl
