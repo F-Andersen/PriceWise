@@ -49,6 +49,10 @@ npm run monitor:prices -- --dry-run        # без запису в БД
 npm run monitor:prices -- --limit=5 --stores=Novus,METRO --verbose
 ```
 
+## Розгортання на сервері
+
+Production-стек (PostgreSQL, API, вебзастосунок за Caddy з автоматичним HTTPS) запускається через `docker compose`. Покрокова інструкція в [DEPLOY.md](DEPLOY.md).
+
 ## Backend
 
 Створіть PostgreSQL базу, наприклад `price_monitoring`, і заповніть `.env`.
