@@ -6,16 +6,18 @@ import { LineChart } from "react-native-chart-kit";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
-import { Product } from "../types";
-import { activePrice, averageLatestPrice, latestByStore, minProductPrice, productImageForBestPrice } from "../utils/prices";
+import { MarketPrice, Product } from "../types";
+import { activePrice, latestByStore, productImageForBestPrice } from "../utils/prices";
 
 export function ProductDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "ProductDetails">>();
   const [product, setProduct] = useState<Product | null>(null);
+  const [marketPrices, setMarketPrices] = useState<MarketPrice[]>([]);
   const [alternatives, setAlternatives] = useState<any[]>([]);
 
   useEffect(() => {
     api.product(route.params.productId).then(setProduct).catch((error) => Alert.alert("Товар", error.message));
+    api.marketPrices(route.params.productId).then(setMarketPrices).catch(() => setMarketPrices([]));
     api.alternatives(route.params.productId).then(setAlternatives).catch(() => setAlternatives([]));
   }, [route.params.productId]);
 
@@ -27,16 +29,26 @@ export function ProductDetailsScreen() {
       listId = list.id;
       await AsyncStorage.setItem("activeListId", listId);
     }
-    await api.addItem(listId, product.id, 1);
+    try {
+      await api.addItem(listId, product.id, 1);
+    } catch (error) {
+      const list = await api.createList("Мій кошик");
+      listId = list.id;
+      await AsyncStorage.setItem("activeListId", listId);
+      await api.addItem(listId, product.id, 1);
+    }
     Alert.alert("Додано", `${product.name} додано в кошик`);
   }
 
   if (!product) return <View style={styles.container}><Text>Завантаження...</Text></View>;
 
-  const latest = latestByStore(product.prices);
+  const latest = marketPrices.length ? marketPrices : latestByStore(product.prices);
   const history = (product.prices || []).slice(-8);
   const chartData = history.length ? history.map(activePrice) : [0];
   const imageUrl = productImageForBestPrice(product);
+  const currentPrices = latest.filter((price) => price.isAvailable).map(activePrice);
+  const lowestPrice = currentPrices.length ? Math.min(...currentPrices) : null;
+  const averagePrice = currentPrices.length ? Math.round((currentPrices.reduce((sum, price) => sum + price, 0) / currentPrices.length) * 100) / 100 : 0;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -45,16 +57,20 @@ export function ProductDetailsScreen() {
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.meta}>{product.brand} · {product.volume} · {product.unit}</Text>
       <View style={styles.summary}>
-        <Text style={styles.summaryText}>Найнижча: {minProductPrice(product)} грн</Text>
-        <Text style={styles.summaryText}>Середня: {averageLatestPrice(product)} грн</Text>
+        <Text style={styles.summaryText}>Найнижча: {lowestPrice ?? "немає"} грн</Text>
+        <Text style={styles.summaryText}>Середня: {averagePrice || "немає"} грн</Text>
       </View>
       <PrimaryButton title="Додати в кошик" onPress={addToCart} />
 
       <Text style={styles.section}>Ціни в магазинах</Text>
-      {latest.map((price) => (
+      {latest.map((price) => {
+        const matchedProduct = "product" in price ? (price as MarketPrice).product : product;
+        const isSimilar = "matchType" in price && price.matchType === "similar";
+        return (
         <View key={price.id} style={styles.priceRow}>
           <View>
             <Text style={styles.store}>{price.store.name}</Text>
+            {isSimilar ? <Text style={styles.similarName} numberOfLines={2}>Схожий товар: {matchedProduct.name}</Text> : null}
             <Text style={styles.date}>{new Date(price.dateCollected).toLocaleDateString()}</Text>
             {price.sourceUrl ? (
               <Pressable onPress={() => Linking.openURL(price.sourceUrl!)}>
@@ -64,10 +80,12 @@ export function ProductDetailsScreen() {
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={styles.price}>{activePrice(price)} грн</Text>
+            {isSimilar ? <Text style={styles.similarBadge}>Схожий</Text> : null}
             {price.discountPrice ? <Text style={styles.discount}>Акція</Text> : null}
           </View>
         </View>
-      ))}
+        );
+      })}
 
       <Text style={styles.section}>Історія ціни</Text>
       <LineChart
@@ -103,9 +121,11 @@ const styles = StyleSheet.create({
   section: { fontSize: 18, fontWeight: "800", color: "#17231e", marginTop: 22, marginBottom: 10 },
   priceRow: { flexDirection: "row", justifyContent: "space-between", backgroundColor: "#fff", borderColor: "#e4ece8", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },
   store: { color: "#17231e", fontWeight: "800" },
+  similarName: { color: "#60736b", marginTop: 4, maxWidth: 210, lineHeight: 17 },
   date: { color: "#60736b", marginTop: 2 },
   sourceLink: { color: "#0e7a43", fontWeight: "800", marginTop: 6 },
   price: { color: "#0e7a43", fontWeight: "900", fontSize: 16 },
+  similarBadge: { color: "#0e7a43", backgroundColor: "#e7f3ee", overflow: "hidden", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
   discount: { color: "#0e7a43", backgroundColor: "#dff5e9", overflow: "hidden", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
   chart: { borderRadius: 8 },
   alt: { backgroundColor: "#fff", borderColor: "#e4ece8", borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 8 },

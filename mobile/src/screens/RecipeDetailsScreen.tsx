@@ -21,8 +21,15 @@ export function RecipeDetailsScreen() {
 
   async function addToCart() {
     if (!recipe) return;
-    const listId = await AsyncStorage.getItem("activeListId");
-    const list = await api.addRecipeToList(recipe.id, listId || undefined);
+    let listId = await AsyncStorage.getItem("activeListId");
+    let list;
+    try {
+      list = await api.addRecipeToList(recipe.id, listId || undefined);
+    } catch (error) {
+      await AsyncStorage.removeItem("activeListId");
+      listId = null;
+      list = await api.addRecipeToList(recipe.id);
+    }
     await AsyncStorage.setItem("activeListId", list.id);
     Alert.alert("Додано", "Інгредієнти рецепта додані в кошик");
   }
@@ -59,9 +66,32 @@ export function RecipeDetailsScreen() {
             <Text style={styles.summaryLabel}>від мінімуму</Text>
           </View>
         </View>
+        {recipe.guide ? (
+          <View style={styles.guideMetaRow}>
+            <Text style={styles.guideMeta}>{recipe.guide.durationMinutes} хв</Text>
+            <Text style={styles.guideMeta}>{recipe.guide.servings} порції</Text>
+            <Text style={styles.guideMeta}>{recipe.guide.difficulty}</Text>
+          </View>
+        ) : null}
       </View>
 
       <PrimaryButton title="Додати продукти в кошик" onPress={addToCart} />
+
+      {recipe.guide ? (
+        <>
+          <Text style={styles.section}>Спосіб приготування</Text>
+          <View style={styles.stepsCard}>
+            {recipe.guide.steps.map((step, index) => (
+              <View key={`${index}-${step}`} style={styles.stepRow}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.stepText}>{step}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
 
       <Text style={styles.section}>Інгредієнти</Text>
       {recipe.items.map((item) => {
@@ -172,12 +202,61 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 3
   },
+  guideMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12
+  },
+  guideMeta: {
+    color: colors.primaryDark,
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    overflow: "hidden",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    fontWeight: "900"
+  },
   section: {
     color: colors.text,
     fontSize: 20,
     fontWeight: "900",
     marginTop: 20,
     marginBottom: 12
+  },
+  stepsCard: {
+    ...shadow,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.lg,
+    padding: 14
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 12
+  },
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10
+  },
+  stepNumberText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  stepText: {
+    flex: 1,
+    color: colors.text,
+    lineHeight: 20,
+    fontWeight: "700"
   },
   row: {
     ...shadow,

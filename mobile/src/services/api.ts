@@ -1,6 +1,45 @@
-import { ComparisonResult, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { NativeModules, Platform } from "react-native";
+import { ComparisonResult, MarketPrice, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
-const API_URL = (process.env.EXPO_PUBLIC_API_URL || "http://localhost:4001/api").trim();
+const FALLBACK_LAN_HOST = "192.168.0.221";
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function getHostFromLocation() {
+  const location = (globalThis as { location?: { hostname?: string } }).location;
+  return location?.hostname;
+}
+
+function getHostFromNativeBundle() {
+  const sourceCode = NativeModules.SourceCode as { scriptURL?: string } | undefined;
+  const scriptUrl = sourceCode?.scriptURL;
+  if (!scriptUrl) return undefined;
+
+  try {
+    return new URL(scriptUrl).hostname;
+  } catch {
+    const match = scriptUrl.match(/^(?:https?|exp):\/\/([^/:]+)/i);
+    return match?.[1];
+  }
+}
+
+function inferApiUrl() {
+  const explicitUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (explicitUrl) return trimTrailingSlash(explicitUrl);
+
+  if (Platform.OS === "web") {
+    const host = getHostFromLocation() || "localhost";
+    return `http://${host}:4001/api`;
+  }
+
+  const nativeHost = getHostFromNativeBundle();
+  const host = nativeHost && !["localhost", "127.0.0.1", "::1"].includes(nativeHost) ? nativeHost : FALLBACK_LAN_HOST;
+  return `http://${host}:4001/api`;
+}
+
+const API_URL = inferApiUrl();
 
 let authToken: string | null = null;
 
@@ -31,6 +70,7 @@ export const api = {
   products: () => request<Product[]>("/products"),
   searchProducts: (query: string) => request<Product[]>(`/products/search?query=${encodeURIComponent(query)}`),
   product: (id: string) => request<Product>(`/products/${id}`),
+  marketPrices: (id: string) => request<MarketPrice[]>(`/products/${id}/market-prices`),
   alternatives: (id: string) => request<any[]>(`/products/${id}/alternatives`),
   stores: () => request<Store[]>("/stores"),
   offers: (storeId?: string) => request<Offer[]>(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`),

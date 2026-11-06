@@ -62,6 +62,12 @@ export type Recipe = {
   title: string;
   description: string;
   imageUrl?: string;
+  guide?: {
+    durationMinutes: number;
+    servings: number;
+    difficulty: "Легко" | "Середньо";
+    steps: string[];
+  };
   items: Array<{ id: string; quantity: number; product: Product }>;
 };
 
@@ -77,4 +83,9 @@ export type Offer = {
   discountPercent: number;
   dateCollected: string;
   label: string;
+};
+
+export type MarketPrice = Price & {
+  product: Product;
+  matchType: "exact" | "similar";
 };
