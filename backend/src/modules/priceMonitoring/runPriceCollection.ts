@@ -25,7 +25,7 @@ const numberArg = (name: string) => {
 
 async function main() {
   const dryRun = flag("dry-run");
-  const { promotions, collectedAt, rows, summary, prunedRows } = await runPriceCollection({
+  const { promotions, collectedAt, rows, summary, freshMerges, prunedRows } = await runPriceCollection({
     dryRun,
     limit: numberArg("limit"),
     storeNames: arg("stores")?.split(",").map((name) => name.trim()),
@@ -41,6 +41,10 @@ async function main() {
   if (flag("verbose")) console.table(rows);
   else console.table(rows.filter((row) => row.status === "error" || row.status === "marked_unavailable"));
   console.table(summary);
+  if (freshMerges.length) {
+    console.log("Fresh produce merged across stores");
+    console.table(freshMerges.map(({ name, stores }) => ({ name, stores: stores.join(", ") })));
+  }
   if (prunedRows) console.log(`Old price history removed: ${prunedRows} rows`);
 }
 
