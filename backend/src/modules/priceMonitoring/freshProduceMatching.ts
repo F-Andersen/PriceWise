@@ -1,5 +1,6 @@
 import type { Product } from "@prisma/client";
 import { prisma } from "../../prisma";
+import { freshMeatMatch } from "./freshMeatMatching";
 import { classifyBarcode } from "./gtin";
 
 /**
@@ -14,7 +15,8 @@ import { classifyBarcode } from "./gtin";
  * - the rest of the name must match exactly, ignoring word order, country of
  *   origin and filler words. Varieties stay apart: "Картопля рожева" ≠ "Картопля";
  * - a group with two products from the same store is ambiguous and is skipped.
- * Meat is not merged: cuts are named too inconsistently ("філе стегна" vs "стегно").
+ * Fresh meat on the counter uses a stricter rule (species + cut + state + brand),
+ * see freshMeatMatching.ts.
  */
 const PRODUCE_STEMS = [
   "авокадо", "апельсин", "банан", "броколі", "буряк", "виноград", "гарбуз", "грейпфрут", "груш",
@@ -66,6 +68,23 @@ function displayName(key: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+type WeighedMatch = { key: string; name: string; kind: "produce" | "meat" };
+
+/** Group key and display name for a weighed product, or null if it must stay as is. */
+export function weighedMatch(product: Pick<Product, "name" | "barcode" | "volume">): WeighedMatch | null {
+  if (classifyBarcode(product.barcode).kind === "global") return null;
+  if (!/кг/i.test(product.volume) || !/^за\s/i.test(product.volume.trim())) return null;
+  const produce = freshProduceKey(product);
+  if (produce) return { key: produce, name: displayName(produce), kind: "produce" };
+  const meat = freshMeatMatch(product.name);
+  return meat ? { ...meat, kind: "meat" } : null;
+}
+
+const DESCRIPTIONS = {
+  produce: "Свіжі овочі чи фрукти на вагу. Ціни різних магазинів об'єднано за назвою: сорт і походження можуть відрізнятися.",
+  meat: "Охолоджене м'ясо на вагу. Ціни різних магазинів об'єднано за видом м'яса, частиною й брендом: виробник і калібр можуть відрізнятися."
+};
+
 const canonicalBarcode = (key: string) => `fresh:${key.replace(/\s+/g, "-")}:kg`;
 
 export type FreshMergeGroup = {
@@ -84,17 +103,20 @@ export async function mergeFreshProduce({ dryRun = false } = {}): Promise<FreshM
   });
 
   const groups = new Map<string, typeof products>();
+  const matches = new Map<string, WeighedMatch>();
   for (const product of products) {
-    const key = freshProduceKey(product);
-    if (!key) continue;
-    groups.set(key, [...(groups.get(key) ?? []), product]);
+    const match = weighedMatch(product);
+    if (!match) continue;
+    matches.set(match.key, match);
+    groups.set(match.key, [...(groups.get(match.key) ?? []), product]);
   }
 
   const result: FreshMergeGroup[] = [];
   for (const [key, members] of groups) {
     if (members.length < 2) continue;
     const storeNames = members.flatMap((product) => product.sources.map((source) => source.store.name));
-    const row = { key, name: displayName(key), stores: storeNames, products: members.map((product) => product.name) };
+    const match = matches.get(key)!;
+    const row = { key, name: match.name, stores: storeNames, products: members.map((product) => product.name) };
 
     if (new Set(storeNames).size !== storeNames.length) {
       result.push({ ...row, status: "skipped", reason: "Two products from the same store" });
@@ -136,12 +158,12 @@ export async function mergeFreshProduce({ dryRun = false } = {}): Promise<FreshM
       await tx.product.update({
         where: { id: target.id },
         data: {
-          name: displayName(key),
+          name: match.name,
           barcode: canonicalBarcode(key),
-          brand: "Без бренду",
-          category: specificCategory ?? target.category,
+          brand: match.kind === "produce" ? "Без бренду" : target.brand,
+          category: match.kind === "meat" ? "М'ясо" : specificCategory ?? target.category,
           imageUrl: target.imageUrl ?? others.find((product) => product.imageUrl)?.imageUrl ?? null,
-          description: "Свіжі овочі чи фрукти на вагу. Ціни різних магазинів об'єднано за назвою: сорт і походження можуть відрізнятися."
+          description: DESCRIPTIONS[match.kind]
         }
       });
     });

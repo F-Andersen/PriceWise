@@ -121,7 +121,7 @@ export function ProductDetailsScreen() {
 
         <SectionHeader title="Ціни в магазинах" subtitle={isWeighedProduce ? "Той самий продукт на вагу" : "Цей самий товар"} />
         {isWeighedProduce && exact.length > 1 ? (
-          <Notice tone="neutral" icon="info" text="Овочі й фрукти на вагу не мають спільного штрихкоду, тому ціни магазинів об'єднано за назвою. Сорт, калібр і країна походження можуть відрізнятися." />
+          <Notice tone="neutral" icon="info" text={product.barcode.startsWith("fresh:meat") ? "М'ясо на вагу не має спільного штрихкоду, тому ціни магазинів об'єднано за видом м'яса, частиною й брендом. Виробник і калібр можуть відрізнятися." : "Овочі й фрукти на вагу не мають спільного штрихкоду, тому ціни магазинів об'єднано за назвою. Сорт, калібр і країна походження можуть відрізнятися."} />
         ) : null}
         {exact.length ? (
           <Card style={styles.listCard}>
