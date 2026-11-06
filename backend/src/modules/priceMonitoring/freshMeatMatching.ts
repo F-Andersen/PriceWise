@@ -61,7 +61,9 @@ const CUT_NAMES: Record<string, string> = {
   шлунки: "Шлунки"
 };
 
-export function freshMeatMatch(name: string): { key: string; name: string; brand: string | null } | null {
+export type FreshMeatMatch = { key: string; name: string; brand: string | null; species: string; cut: string; state: string };
+
+export function freshMeatMatch(name: string): FreshMeatMatch | null {
   if (/[a-z]/i.test(name) || PROCESSED.test(name)) return null;
 
   const tokens = name
@@ -97,5 +99,5 @@ export function freshMeatMatch(name: string): { key: string; name: string; brand
   const key = ["meat", species, cut, state, ...[...rest].sort()].join(" ");
   const brandTitle = brand.replace(/(^|\s)\S/g, (letter) => letter.toUpperCase());
   const displayName = [CUT_NAMES[cut], species, brandTitle, state].filter(Boolean).join(" ");
-  return { key, name: displayName, brand: brandTitle || null };
+  return { key, name: displayName, brand: brandTitle || null, species, cut, state };
 }
