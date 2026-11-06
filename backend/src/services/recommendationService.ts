@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
-import { activePrice, roundMoney, toNumber } from "../utils/money";
+import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 
 export async function getAlternatives(productId: string) {
   const product = await prisma.product.findUnique({ where: { id: productId } });
@@ -53,12 +53,15 @@ export async function getShoppingListRecommendations(shoppingListId: string) {
     const latestPrices = await prisma.price.findMany({
       where: { productId: item.productId, store: collectedStoresWhere },
       orderBy: { dateCollected: "desc" },
-      take: 3,
       include: { store: true }
     });
 
+    // Newest row per store only; an older discounted row may describe an ended promotion.
+    const seenStores = new Set<string>();
     for (const price of latestPrices) {
-      if (price.discountPrice) {
+      if (seenStores.has(price.storeId)) continue;
+      seenStores.add(price.storeId);
+      if (price.isAvailable && hasActiveDiscount(price)) {
         recommendations.push({
           type: "discount",
           message: `${item.product.name} має акційну ціну в ${price.store.name}: ${toNumber(price.discountPrice)} грн`,

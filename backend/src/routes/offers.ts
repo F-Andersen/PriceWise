@@ -1,34 +1,42 @@
+import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../prisma";
-import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
-import { activePrice, roundMoney, toNumber } from "../utils/money";
+import { zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 
 const router = Router();
 
+/**
+ * Latest price row per product and store. Offers must be decided on this row:
+ * filtering by "has a discount" first would resurrect a promotion that ended,
+ * because its old discounted row would still be the newest discounted one.
+ */
+async function latestPriceIds(storeId?: string) {
+  const storeNames = zakazStores.map((store) => store.name);
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT DISTINCT ON (p."productId", p."storeId") p.id
+    FROM "Price" p
+    JOIN "Store" s ON s.id = p."storeId"
+    WHERE s.name IN (${Prisma.join(storeNames)})
+      ${storeId ? Prisma.sql`AND p."storeId" = ${storeId}` : Prisma.empty}
+    ORDER BY p."productId", p."storeId", p."dateCollected" DESC, p.id DESC
+  `);
+  return rows.map((row) => row.id);
+}
+
 router.get("/", async (req, res) => {
   const storeId = typeof req.query.storeId === "string" ? req.query.storeId : undefined;
+  const now = new Date();
 
-  const prices = await prisma.price.findMany({
-    where: {
-      isAvailable: true,
-      storeId,
-      store: collectedStoresWhere,
-      OR: [{ discountPrice: { not: null } }, { oldPrice: { not: null } }]
-    },
-    include: { product: true, store: true },
-    orderBy: { dateCollected: "desc" },
-    take: 80
+  const latest = await prisma.price.findMany({
+    where: { id: { in: await latestPriceIds(storeId) }, isAvailable: true, discountPrice: { not: null } },
+    include: { product: true, store: true }
   });
 
-  const latestByProductStore = new Map<string, (typeof prices)[number]>();
-  for (const price of prices) {
-    const key = `${price.productId}:${price.storeId}`;
-    if (!latestByProductStore.has(key)) latestByProductStore.set(key, price);
-  }
-
-  const offers = Array.from(latestByProductStore.values())
+  const offers = latest
+    .filter((price) => hasActiveDiscount(price, now))
     .map((price) => {
-      const currentPrice = activePrice(price);
+      const currentPrice = activePrice(price, now);
       const oldPrice = toNumber(price.oldPrice ?? price.price);
       const saveAmount = Math.max(0, oldPrice - currentPrice);
       const discountPercent = oldPrice > 0 ? Math.round((saveAmount / oldPrice) * 100) : 0;
@@ -44,7 +52,8 @@ router.get("/", async (req, res) => {
         saveAmount: roundMoney(saveAmount),
         discountPercent,
         dateCollected: price.dateCollected,
-        label: price.discountPrice ? "Акція" : "Спецпропозиція"
+        promoEndsAt: price.promoEndsAt,
+        label: "Акція"
       };
     })
     .filter((offer) => offer.saveAmount > 0)

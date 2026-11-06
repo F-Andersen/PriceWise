@@ -9,6 +9,7 @@ import productRoutes from "./routes/products";
 import recipeRoutes from "./routes/recipes";
 import shoppingListRoutes from "./routes/shoppingLists";
 import storeRoutes from "./routes/stores";
+import { startPriceScheduler } from "./modules/priceMonitoring/priceScheduler";
 
 const app = express();
 const port = Number(process.env.PORT || 4001);
@@ -34,4 +35,5 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 
 app.listen(port, () => {
   console.log(`API is running on http://localhost:${port}`);
+  startPriceScheduler();
 });

@@ -64,6 +64,8 @@ model Price {
   price         Decimal  @db.Decimal(10, 2)
   oldPrice      Decimal? @db.Decimal(10, 2)
   discountPrice Decimal? @db.Decimal(10, 2)
+  /// Last day the discount is valid (end of day, Kyiv time), if the store published it.
+  promoEndsAt   DateTime?
   dateCollected DateTime
   isAvailable   Boolean  @default(true)
   imageUrl      String?

@@ -13,6 +13,8 @@ export type Price = {
   price: string | number;
   oldPrice?: string | number | null;
   discountPrice?: string | number | null;
+  /** Останній день акції, якщо магазин його вказав. */
+  promoEndsAt?: string | null;
   dateCollected: string;
   isAvailable: boolean;
   imageUrl?: string | null;
@@ -106,6 +108,7 @@ export type Offer = {
   saveAmount: number;
   discountPercent: number;
   dateCollected: string;
+  promoEndsAt?: string | null;
   label: string;
 };
 

@@ -5,8 +5,28 @@ export function numberPrice(value: string | number | null | undefined) {
   return typeof value === "number" ? value : Number(value);
 }
 
+/** Знижка діє, якщо вона є і магазин не повідомив, що акція вже закінчилась. */
+export function hasActiveDiscount(price: Price) {
+  if (price.discountPrice === null || price.discountPrice === undefined) return false;
+  return !price.promoEndsAt || +new Date(price.promoEndsAt) >= Date.now();
+}
+
+/** Звичайна ціна без знижки. */
+export function regularPrice(price: Price) {
+  return numberPrice(price.oldPrice ?? price.price);
+}
+
+/** Ціна, яку покупець заплатить зараз; після кінця акції — звичайна. */
 export function activePrice(price: Price) {
-  return numberPrice(price.discountPrice ?? price.price);
+  if (hasActiveDiscount(price)) return numberPrice(price.discountPrice);
+  if (price.discountPrice !== null && price.discountPrice !== undefined) return regularPrice(price);
+  return numberPrice(price.price);
+}
+
+/** «до 10.11» для дати кінця акції. */
+export function promoUntilLabel(value: string | Date) {
+  const date = new Date(value);
+  return `до ${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export function latestByStore(prices: Price[] = []) {

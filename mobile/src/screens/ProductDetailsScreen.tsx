@@ -10,12 +10,12 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
-import { activePrice, countLabel, formatPrice, latestByStore, numberPrice, productImageForBestPrice, splitMarketPrices } from "../utils/prices";
+import { activePrice, countLabel, formatPrice, hasActiveDiscount, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
   const unavailable = !price.isAvailable;
-  const hasDiscount = Boolean(price.discountPrice);
+  const hasDiscount = !unavailable && hasActiveDiscount(price);
   return (
     <View style={[styles.priceRow, showDivider && styles.divider]}>
       <View style={styles.priceRowMain}>
@@ -31,11 +31,11 @@ function PriceRow({ price, showDivider, isLowest, productName }: { price: Price 
       </View>
       <View style={styles.priceRowSide}>
         <Text style={[type.price, unavailable && styles.unavailable]}>{formatPrice(activePrice(price))}</Text>
-        {hasDiscount ? <Text style={styles.oldPrice}>{formatPrice(numberPrice(price.price))}</Text> : null}
+        {hasDiscount ? <Text style={styles.oldPrice}>{formatPrice(regularPrice(price))}</Text> : null}
         <View style={styles.badges}>
           {unavailable ? <Badge label="Немає в наявності" tone="caution" /> : null}
           {isLowest ? <Badge label="Найнижча" tone="primary" /> : null}
-          {hasDiscount ? <Badge label="Акція" tone="deal" /> : null}
+          {hasDiscount ? <Badge label={price.promoEndsAt ? `Акція ${promoUntilLabel(price.promoEndsAt)}` : "Акція"} tone="deal" /> : null}
         </View>
       </View>
     </View>

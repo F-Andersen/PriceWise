@@ -9,7 +9,7 @@ type ZakazProduct = {
   ean: string;
   title: string;
   price: number; // kopecks
-  discount?: { status?: boolean; old_price?: number } | null;
+  discount?: { status?: boolean; old_price?: number; due_date?: string | null } | null;
   in_stock?: boolean;
   web_url?: string;
   img?: Record<string, string> | null;
@@ -73,11 +73,21 @@ async function fetchZakazProduct(url: string, expectedGtin14: string | null): Pr
   }
 }
 
+/**
+ * "2026-11-10" -> the end of that day in Kyiv. Uses UTC+2 (winter time), so in
+ * summer the promotion is treated as ending one hour later than it really does.
+ */
+function promoEnd(dueDate?: string | null) {
+  if (!dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null;
+  const date = new Date(`${dueDate}T23:59:59+02:00`);
+  return Number.isNaN(+date) ? null : date;
+}
+
 function pricesFrom(product: ZakazProduct) {
   const price = roundMoney(product.price / 100);
   const old = product.discount?.status && product.discount.old_price ? roundMoney(product.discount.old_price / 100) : null;
   const oldPrice = old && old > price && old < price * 5 ? old : null;
-  return { price, oldPrice, discountPrice: oldPrice ? price : null };
+  return { price, oldPrice, discountPrice: oldPrice ? price : null, promoEndsAt: oldPrice ? promoEnd(product.discount?.due_date) : null };
 }
 
 async function recordFound(
@@ -87,7 +97,7 @@ async function recordFound(
   collectedAt: Date,
   dryRun: boolean
 ): Promise<CatalogSyncRow> {
-  const { price, oldPrice, discountPrice } = pricesFrom(found.product);
+  const { price, oldPrice, discountPrice, promoEndsAt } = pricesFrom(found.product);
   const inStock = found.product.in_stock ?? true;
   const imageUrl = found.product.img?.s350x350 ?? found.product.img?.s200x200 ?? null;
   const row: CatalogSyncRow = { product: product.name, store: store.name, status: "created", price, oldPrice, inStock };
@@ -113,6 +123,7 @@ async function recordFound(
       price,
       oldPrice,
       discountPrice,
+      promoEndsAt,
       dateCollected: collectedAt,
       isAvailable: inStock,
       imageUrl,

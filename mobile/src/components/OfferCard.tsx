@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Offer } from "../types";
-import { formatDate, formatPrice } from "../utils/prices";
+import { formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
 import { colors, radii, shadow, spacing, type } from "../utils/theme";
 import { Badge, IconButton, ProductImage } from "./ui";
 
@@ -14,7 +14,7 @@ type Props = {
 export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
   const imageUrl = offer.imageUrl || offer.product.imageUrl;
   const isList = layout === "list";
-  const a11y = `${offer.product.name}, ${offer.store.name}. ${formatPrice(offer.price)}, була ${formatPrice(offer.oldPrice)}, знижка ${offer.discountPercent}%. Станом на ${formatDate(offer.dateCollected)}`;
+  const a11y = `${offer.product.name}, ${offer.store.name}. ${formatPrice(offer.price)}, була ${formatPrice(offer.oldPrice)}, знижка ${offer.discountPercent}%${offer.promoEndsAt ? `, акція ${promoUntilLabel(offer.promoEndsAt)}` : ""}. Станом на ${formatDate(offer.dateCollected)}`;
 
   const details = (
     <>
@@ -24,6 +24,7 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
         <Text style={type.price}>{formatPrice(offer.price)}</Text>
         <Text style={styles.oldPrice}>{formatPrice(offer.oldPrice)}</Text>
       </View>
+      {offer.promoEndsAt ? <Text style={styles.promoEnd}>акція {promoUntilLabel(offer.promoEndsAt)}</Text> : null}
       <Text style={styles.date}>станом на {formatDate(offer.dateCollected)}</Text>
     </>
   );
@@ -69,6 +70,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", columnGap: spacing.sm, marginTop: spacing.xs },
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
   date: { ...type.small, fontSize: 12, marginTop: 2 },
+  promoEnd: { ...type.small, fontSize: 12, marginTop: 2, color: colors.deal },
   list: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
   listMain: { flex: 1, minWidth: 0, flexDirection: "row", gap: spacing.md, padding: spacing.md },
   listBadge: { position: "absolute", top: spacing.xs, left: spacing.xs },

@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
-import { activePrice, roundMoney } from "../utils/money";
+import { activePrice, hasActiveDiscount, roundMoney } from "../utils/money";
 
 export async function compareShoppingList(shoppingListId: string) {
   const list = await prisma.shoppingList.findUnique({
@@ -38,7 +38,7 @@ export async function compareShoppingList(shoppingListId: string) {
           quantity: item.quantity,
           unitPrice: roundMoney(unitPrice),
           lineTotal: roundMoney(lineTotal),
-          hasDiscount: Boolean(latest.discountPrice)
+          hasDiscount: hasActiveDiscount(latest)
         });
       }
 

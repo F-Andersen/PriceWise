@@ -1,17 +1,17 @@
 /**
- * Price collection run: promotions first (they bring new products), then every
- * catalogue product is looked up by barcode in each store.
+ * Manual price collection run: promotions first (they bring new products), then
+ * every catalogue product is looked up by barcode in each store. The API also runs
+ * this on a schedule (see priceScheduler.ts); both share one lock.
  *
  *   npm run monitor:prices                     full run
  *   npm run monitor:prices -- --dry-run        fetch and parse, write nothing
  *   npm run monitor:prices -- --limit=5        only the first 5 products
  *   npm run monitor:prices -- --stores=Novus,METRO
- *   npm run monitor:prices -- --promo-limit=20 --skip-promotions
+ *   npm run monitor:prices -- --promo-limit=20 --skip-promotions --verbose
  */
 import "dotenv/config";
 import { prisma } from "../../prisma";
-import { syncPromotionPages } from "./promotionPageSync";
-import { syncZakazCatalog } from "./zakazCatalogSync";
+import { runPriceCollection } from "./priceCollection";
 
 function arg(name: string) {
   const prefix = `--${name}=`;
@@ -25,14 +25,18 @@ const numberArg = (name: string) => {
 
 async function main() {
   const dryRun = flag("dry-run");
-  const storeNames = arg("stores")?.split(",").map((name) => name.trim());
+  const { promotions, collectedAt, rows, summary } = await runPriceCollection({
+    dryRun,
+    limit: numberArg("limit"),
+    storeNames: arg("stores")?.split(",").map((name) => name.trim()),
+    promoLimit: numberArg("promo-limit"),
+    skipPromotions: flag("skip-promotions")
+  });
 
-  if (!flag("skip-promotions") && !dryRun) {
+  if (promotions.length) {
     console.log("Promotions");
-    console.table(await syncPromotionPages(numberArg("promo-limit") ?? 12));
+    console.table(promotions);
   }
-
-  const { collectedAt, rows, summary } = await syncZakazCatalog({ dryRun, limit: numberArg("limit"), storeNames });
   console.log(`Catalogue by barcode${dryRun ? " (dry run, nothing written)" : ""}, collected at ${collectedAt.toISOString()}`);
   if (flag("verbose")) console.table(rows);
   else console.table(rows.filter((row) => row.status === "error" || row.status === "marked_unavailable"));
@@ -41,7 +45,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error);
+    console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   })
   .finally(() => prisma.$disconnect());

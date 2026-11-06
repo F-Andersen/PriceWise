@@ -5,11 +5,27 @@ export function toNumber(value: Prisma.Decimal | number | null | undefined): num
   return typeof value === "number" ? value : value.toNumber();
 }
 
-export function activePrice(price: {
+type PriceLike = {
   price: Prisma.Decimal;
+  oldPrice?: Prisma.Decimal | null;
   discountPrice: Prisma.Decimal | null;
-}): number {
-  return toNumber(price.discountPrice ?? price.price);
+  promoEndsAt?: Date | null;
+};
+
+/** A discount counts only if the store hasn't told us it already ended. */
+export function hasActiveDiscount(price: PriceLike, now = new Date()): boolean {
+  if (!price.discountPrice) return false;
+  return !price.promoEndsAt || price.promoEndsAt >= now;
+}
+
+/**
+ * The price a shopper pays now. After a known promotion end date we fall back to
+ * the regular price until the next collection brings a fresh one.
+ */
+export function activePrice(price: PriceLike, now = new Date()): number {
+  if (hasActiveDiscount(price, now)) return toNumber(price.discountPrice);
+  if (price.discountPrice) return toNumber(price.oldPrice ?? price.price);
+  return toNumber(price.price);
 }
 
 export function roundMoney(value: number): number {
