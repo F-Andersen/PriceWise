@@ -52,6 +52,7 @@ export type ShoppingList = {
   items: ShoppingListItem[];
 };
 
+/** Рядок кошика, знайдений у магазині. */
 export type ComparisonItem = {
   productId: string;
   productName: string;
@@ -59,17 +60,46 @@ export type ComparisonItem = {
   unitPrice: number;
   lineTotal: number;
   hasDiscount: boolean;
+  checkedAt: string;
+};
+
+/** Товар кошика, якого немає в магазині, і чому. */
+export type MissingItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  /** unavailable — магазин позначив «немає в наявності»; no_price — у базі немає ціни. */
+  reason: "unavailable" | "no_price";
 };
 
 export type ComparisonResult = {
   store: Store;
+  status: "complete" | "partial" | "no_data";
   totalPrice: number;
   foundCount: number;
   missingCount: number;
+  items: ComparisonItem[];
+  missing: MissingItem[];
   missingProducts: string[];
-  difference: number;
+  /** Лише для найдешевшого серед двох і більше повних кошиків. */
   isBest: boolean;
-  items?: ComparisonItem[];
+  /** Різниця з найдешевшим повним кошиком; null, якщо порівнювати не можна. */
+  difference: number | null;
+  /** Найстаріша перевірка серед використаних цін. */
+  checkedAt: string | null;
+};
+
+export type BasketVerdict =
+  | { kind: "empty" }
+  | { kind: "cheapest"; storeIds: string[]; total: number; spread: number; completeCount: number }
+  | { kind: "single_complete"; storeId: string; total: number; partialCount: number }
+  | { kind: "none_complete"; partialCount: number };
+
+/** Відповідь API порівняння: вердикт і магазини (повні, неповні, без даних). */
+export type BasketComparison = {
+  itemCount: number;
+  verdict: BasketVerdict;
+  stores: ComparisonResult[];
 };
 
 export type Recommendation = {
