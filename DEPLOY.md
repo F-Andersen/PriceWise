@@ -1,6 +1,6 @@
 # Розгортання PriceWise на сервері
 
-Стек запускається одним `docker compose`:
+На окремому сервері стек запускається одним `docker compose`:
 
 ```text
 Інтернет ──► Caddy (web, 80/443, HTTPS) ──► /api/* ──► API (Express, збір цін за розкладом)
@@ -102,10 +102,14 @@ EXPO_PUBLIC_API_URL=https://<домен>/api npx expo start
 
 ## 7. Оновлення
 
+Для окремого сервера без GitHub Actions:
+
 ```bash
 git pull
 docker compose up -d --build
 ```
+
+На поточному спільному Oracle-сервері використовуйте автоматичне розгортання з `main`, описане нижче.
 
 ## 8. Резервні копії
 
@@ -123,3 +127,21 @@ docker compose up -d --build
 - Історія цін зберігається 730 днів (`PRICE_HISTORY_DAYS`).
 - Зміна каталогу через API дозволена лише адресам з `ADMIN_EMAILS`. Застосунку це не потрібно.
 - Вхід і реєстрація обмежені 30 спробами за 15 хвилин з однієї IP-адреси.
+
+## Oracle: CI/CD на спільному сервері
+
+GitHub Actions перевіряє збірку backend, типи мобільного застосунку і вебекспорт для `main` та `dev`. Успішний push до `main` запускає деплой на `sites-prod-01`. `production` у GitHub дозволяє деплой лише з `main` і містить секрети `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`.
+
+Цей сервер також обслуговує інші сайти через Nginx. Конфігурація [`deploy/oracle/compose.yml`](deploy/oracle/compose.yml) встановлена як `/etc/pricewise/compose.yml` і закріплює порти PriceWise на `127.0.0.1:14001` (API) та `127.0.0.1:18084` (web). Секрети лежать у root-owned `/etc/pricewise/production.env`, а не керуються GitHub Actions. Зміни Compose і серверного сценарію треба окремо перевірити та встановити адміністратором; звичайний деплой оновлює код і образи.
+
+Окремий користувач `deploy` не входить до групи `docker`. Його SSH-ключ має `restrict,command="/usr/local/libexec/pricewise-ssh-gate"` в `authorized_keys`. Каталог `.ssh` і `authorized_keys` належать `root` та мають права `755` і `644`: SSH-сервер читає ключ, а користувач `deploy` не може змінити обмеження. Через `sudoers` цей користувач може без пароля запускати тільки `/usr/local/sbin/pricewise-deploy` без аргументів (`""` у правилі sudoers). Сценарій приймає SHA через stdin, звіряє його з поточним `origin/main`, створює резервну копію БД, збирає образи й перевіряє локальні та публічний HTTP-маршрути. Якщо оновлення не пройшло, він пробує повернути попередній код і контейнери. **Міграції БД автоматично назад не відкочуються**; для несумісних міграцій потрібен окремий план відновлення.
+
+Обмеження середовища `production` гілкою `main` не замінює захист самої гілки від небажаних змін workflow. Перед наданням доступу на запис іншим учасникам налаштуйте правила захисту `main` і перевірку змін через pull request.
+
+Перевірка на сервері:
+
+```bash
+sudo docker compose -p pricewise -f /etc/pricewise/compose.yml --env-file /etc/pricewise/production.env ps
+curl -fsS https://pricewise.130.61.111.249.sslip.io/api/health
+systemctl status pricewise-backup.timer
+```
