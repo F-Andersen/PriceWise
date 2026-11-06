@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   backend:
-    name: Build backend
+    name: Test and build backend
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -25,10 +25,11 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm run prisma:generate
+      - run: npm test
       - run: npm run build
 
   web:
-    name: Typecheck and export web app
+    name: Test, typecheck and export web app
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -42,6 +43,7 @@ jobs:
           cache-dependency-path: mobile/package-lock.json
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
       - run: npx expo export --platform web --output-dir dist
         env:
           CI: 'true'
