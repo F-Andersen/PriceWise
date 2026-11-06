@@ -5,9 +5,8 @@ import { Icon } from "../components/Icon";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
-import { ComparisonResult, Recommendation } from "../types";
-import { summarizeComparison } from "../utils/compare";
-import { countLabel, formatPrice, latestCollectedAt } from "../utils/prices";
+import { BasketComparison, BasketVerdict, ComparisonResult, Recommendation } from "../types";
+import { countLabel, formatDate, formatPrice, isStale } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function Coverage({ found, total }: { found: number; total: number }) {
@@ -33,26 +32,32 @@ function ItemLines({ result }: { result: ComparisonResult }) {
           <Text style={styles.lineValue}>{formatPrice(line.lineTotal)}{line.hasDiscount ? " · акція" : ""}</Text>
         </View>
       ))}
-      {result.missingProducts.map((name) => (
-        <View key={name} style={styles.line}>
-          <Text style={[type.small, styles.lineName, styles.missing]} numberOfLines={2}>{name}</Text>
-          <Text style={styles.missingValue}>немає ціни</Text>
+      {result.missing.map((line) => (
+        <View key={line.productId} style={styles.line}>
+          <Text style={[type.small, styles.lineName, styles.missing]} numberOfLines={2}>{line.productName}</Text>
+          <Text style={styles.missingValue}>{line.reason === "unavailable" ? "немає в наявності" : "немає ціни в базі"}</Text>
         </View>
       ))}
     </View>
   );
 }
 
-function CompleteCard({ result, total, lowest, showLowest }: { result: ComparisonResult; total: number; lowest: number; showLowest: boolean }) {
-  const delta = Math.round((result.totalPrice - lowest) * 100) / 100;
+function StaleNote({ checkedAt }: { checkedAt: string | null }) {
+  if (!checkedAt || !isStale(checkedAt)) return null;
+  return <Text style={styles.stale}>Найстаріша ціна в цьому кошику перевірялась {formatDate(checkedAt)}. Вона могла змінитися.</Text>;
+}
+
+function CompleteCard({ result, total }: { result: ComparisonResult; total: number }) {
   return (
-    <Card style={[styles.card, showLowest && delta === 0 ? styles.cardLowest : {}]}>
+    <Card style={[styles.card, result.isBest ? styles.cardLowest : {}]}>
       <View style={styles.cardTop}>
         <Text style={type.heading}>{result.store.name}</Text>
-        {showLowest ? (delta === 0 ? <Badge label="Найнижча сума" tone="primary" icon="check" /> : <Text style={styles.delta}>+{formatPrice(delta)}</Text>) : null}
+        {result.isBest ? <Badge label="Найнижча сума" tone="primary" icon="check" /> : null}
+        {!result.isBest && result.difference !== null ? <Text style={styles.delta}>+{formatPrice(result.difference)}</Text> : null}
       </View>
       <Text style={type.priceLarge}>{formatPrice(result.totalPrice)}</Text>
       <Coverage found={result.foundCount} total={total} />
+      <StaleNote checkedAt={result.checkedAt} />
       <ItemLines result={result} />
     </Card>
   );
@@ -67,7 +72,12 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
         <Badge label="Неповний кошик" tone="caution" icon="alert" />
       </View>
       <Coverage found={result.foundCount} total={total} />
-      <Text style={styles.partialSum}>Сума за {countLabel(result.foundCount, "знайдений товар", "знайдені товари", "знайдених товарів")}: {formatPrice(result.totalPrice)}. Не порівнюйте її з повним кошиком.</Text>
+      {result.foundCount > 0 ? (
+        <Text style={styles.partialSum}>Сума за {countLabel(result.foundCount, "знайдений товар", "знайдені товари", "знайдених товарів")}: {formatPrice(result.totalPrice)}. Не порівнюйте її з повним кошиком.</Text>
+      ) : (
+        <Text style={styles.partialSum}>Товари з кошика зараз відсутні в цьому магазині.</Text>
+      )}
+      <StaleNote checkedAt={result.checkedAt} />
       {!open ? <Text style={styles.missingSummary}>Немає: {result.missingProducts.join(", ")}</Text> : <ItemLines result={result} />}
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={styles.toggle}>
         <Text style={styles.toggleText}>{open ? "Сховати деталі" : "Показати деталі"}</Text>
@@ -77,23 +87,24 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
   );
 }
 
-function Verdict({ complete, partialCount, spread }: { complete: ComparisonResult[]; partialCount: number; spread: number | null }) {
-  if (complete.length >= 2) {
+function Verdict({ verdict, storeName }: { verdict: BasketVerdict; storeName: (id: string) => string }) {
+  if (verdict.kind === "cheapest") {
+    const names = verdict.storeIds.map(storeName).join(", ");
     return (
       <Card style={styles.verdict}>
-        <Text style={type.label}>Серед магазинів із повним кошиком</Text>
-        <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>Найнижча сума — {complete[0].store.name}, {formatPrice(complete[0].totalPrice)}</Text>
-        <Text style={type.body}>Різниця з найдорожчим повним кошиком за даними на дату збору: {formatPrice(spread || 0)}. Фактична сума може відрізнятися.</Text>
+        <Text style={type.label}>Серед {countLabel(verdict.completeCount, "магазину", "магазинів", "магазинів")} із повним кошиком</Text>
+        <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>Найнижча сума — {names}, {formatPrice(verdict.total)}</Text>
+        <Text style={type.body}>Різниця з найдорожчим повним кошиком за даними на дату збору: {formatPrice(verdict.spread)}. Фактична сума може відрізнятися.</Text>
       </Card>
     );
   }
-  if (complete.length === 1) {
+  if (verdict.kind === "single_complete") {
     return (
       <Card style={styles.verdict}>
         <Text style={type.label}>Повний кошик лише в одному магазині</Text>
-        <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>{complete[0].store.name}: {formatPrice(complete[0].totalPrice)}</Text>
+        <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>{storeName(verdict.storeId)}: {formatPrice(verdict.total)}</Text>
         <Text style={type.body}>
-          Це не означає, що тут найдешевше: {partialCount ? "в інших магазинах у базі є лише частина товарів" : "для інших магазинів цін немає"}, тому чесно порівняти суму поки неможливо.
+          Це не означає, що тут найдешевше: {verdict.partialCount ? "в інших магазинах у базі є лише частина товарів" : "для інших магазинів цін немає"}, тому чесно порівняти суму поки неможливо.
         </Text>
       </Card>
     );
@@ -109,19 +120,15 @@ function Verdict({ complete, partialCount, spread }: { complete: ComparisonResul
 
 export function CompareStoresScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "CompareStores">>();
-  const [results, setResults] = useState<ComparisonResult[]>([]);
+  const [comparison, setComparison] = useState<BasketComparison | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [collectedAt, setCollectedAt] = useState<string | null>(null);
-  const [itemCount, setItemCount] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(() => {
     setStatus("loading");
-    Promise.all([api.compare(route.params.listId), api.list(route.params.listId)])
-      .then(([nextResults, list]) => {
-        setResults(nextResults);
-        setItemCount(list.items.length);
-        setCollectedAt(latestCollectedAt(list.items.map((item) => item.product)));
+    api.compare(route.params.listId)
+      .then((next) => {
+        setComparison(next);
         setStatus("ready");
       })
       .catch(() => setStatus("error"));
@@ -130,7 +137,14 @@ export function CompareStoresScreen() {
 
   useEffect(() => { load(); }, [load]);
 
-  const { complete, partial, noData, spread } = summarizeComparison(results);
+  // Порядок і вердикт рахує сервер: повні кошики від найдешевшого, далі неповні, далі без даних.
+  const stores = comparison?.stores ?? [];
+  const itemCount = comparison?.itemCount ?? 0;
+  const complete = stores.filter((item) => item.status === "complete");
+  const partial = stores.filter((item) => item.status === "partial");
+  const noData = stores.filter((item) => item.status === "no_data");
+  const storeName = (id: string) => stores.find((item) => item.store.id === id)?.store.name ?? "";
+  const collectedAt = stores.flatMap((item) => item.items.map((line) => line.checkedAt)).sort().pop() ?? null;
   const discounts = recommendations.filter((item) => item.type !== "alternative");
   const replacements = recommendations.filter((item) => item.type === "alternative" && item.product && item.alternative);
 
@@ -143,15 +157,13 @@ export function CompareStoresScreen() {
 
         {status === "ready" && itemCount > 0 ? (
           <>
-            <Verdict complete={complete} partialCount={partial.length} spread={spread} />
+            {comparison ? <Verdict verdict={comparison.verdict} storeName={storeName} /> : null}
             <View style={styles.freshness}><FreshnessNotice collectedAt={collectedAt} /></View>
 
             {complete.length ? (
               <>
                 <SectionHeader title="Повний кошик" subtitle={complete.length >= 2 ? "Ці суми можна порівнювати між собою" : "Є всі товари"} />
-                {complete.map((result) => (
-                  <CompleteCard key={result.store.id} result={result} total={itemCount} lowest={complete[0].totalPrice} showLowest={complete.length >= 2} />
-                ))}
+                {complete.map((result) => <CompleteCard key={result.store.id} result={result} total={itemCount} />)}
               </>
             ) : null}
 
@@ -214,6 +226,7 @@ const styles = StyleSheet.create({
   missingValue: { ...type.small, color: colors.caution, fontWeight: "600" },
   missingSummary: { ...type.small, color: colors.caution },
   partialSum: { ...type.small, color: colors.textSoft },
+  stale: { ...type.small, color: colors.caution },
   toggle: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.minTouch, alignSelf: "flex-start" },
   toggleText: { ...type.small, color: colors.primary, fontWeight: "600" },
   tip: { gap: spacing.xs, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
