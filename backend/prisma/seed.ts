@@ -121,6 +121,11 @@ const products: SeedProduct[] = [
 ];
 
 async function main() {
+  // The seed wipes every table (users, carts, price history). Never by accident on a server.
+  if (process.env.NODE_ENV === "production" && process.env.SEED_ALLOW_RESET !== "true") {
+    throw new Error("Refusing to seed in production: it deletes all data. Set SEED_ALLOW_RESET=true to really do it.");
+  }
+
   await prisma.recipeItem.deleteMany();
   await prisma.recipe.deleteMany();
   await prisma.shoppingListItem.deleteMany();
