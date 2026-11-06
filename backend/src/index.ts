@@ -1,6 +1,9 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+// Express 4 ignores rejected promises from async handlers: without this a bad
+// request body would never reach the error handler (and could crash the process).
+import "express-async-errors";
 import morgan from "morgan";
 import { ZodError } from "zod";
 import { config } from "./config";
