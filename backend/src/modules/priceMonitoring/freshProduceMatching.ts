@@ -68,7 +68,7 @@ function displayName(key: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-type WeighedMatch = { key: string; name: string; kind: "produce" | "meat" };
+type WeighedMatch = { key: string; name: string; kind: "produce" | "meat"; brand?: string | null };
 
 /** Group key and display name for a weighed product, or null if it must stay as is. */
 export function weighedMatch(product: Pick<Product, "name" | "barcode" | "volume">): WeighedMatch | null {
@@ -113,7 +113,16 @@ export async function mergeFreshProduce({ dryRun = false } = {}): Promise<FreshM
 
   const result: FreshMergeGroup[] = [];
   for (const [key, members] of groups) {
-    if (members.length < 2) continue;
+    if (members.length < 2) {
+      // Already merged earlier: keep its name, brand and note in line with the current rules.
+      const [only] = members;
+      const match = matches.get(key)!;
+      const brand = match.brand ?? "Без бренду";
+      if (!dryRun && only.barcode === canonicalBarcode(key) && (only.name !== match.name || only.brand !== brand || only.description !== DESCRIPTIONS[match.kind])) {
+        await prisma.product.update({ where: { id: only.id }, data: { name: match.name, brand, description: DESCRIPTIONS[match.kind] } });
+      }
+      continue;
+    }
     const storeNames = members.flatMap((product) => product.sources.map((source) => source.store.name));
     const match = matches.get(key)!;
     const row = { key, name: match.name, stores: storeNames, products: members.map((product) => product.name) };
@@ -160,7 +169,7 @@ export async function mergeFreshProduce({ dryRun = false } = {}): Promise<FreshM
         data: {
           name: match.name,
           barcode: canonicalBarcode(key),
-          brand: match.kind === "produce" ? "Без бренду" : target.brand,
+          brand: match.brand ?? "Без бренду",
           category: match.kind === "meat" ? "М'ясо" : specificCategory ?? target.category,
           imageUrl: target.imageUrl ?? others.find((product) => product.imageUrl)?.imageUrl ?? null,
           description: DESCRIPTIONS[match.kind]
