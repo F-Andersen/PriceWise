@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from "react-native";
-import { ComparisonResult, MarketPrice, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { BasketComparison, MarketPrice, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
 const FALLBACK_LAN_HOST = "192.168.0.221";
 
@@ -93,7 +93,7 @@ export const api = {
   addItem: (listId: string, productId: string, quantity = 1) => request(`/shopping-lists/${listId}/items`, { method: "POST", body: JSON.stringify({ productId, quantity }) }),
   updateItem: (listId: string, itemId: string, quantity: number) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "PUT", body: JSON.stringify({ quantity }) }),
   deleteItem: (listId: string, itemId: string) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "DELETE" }),
-  compare: (listId: string) => request<ComparisonResult[]>(`/shopping-lists/${listId}/compare`),
+  compare: (listId: string) => request<BasketComparison>(`/shopping-lists/${listId}/compare`),
   recommendations: (listId: string) => request<any[]>(`/shopping-lists/${listId}/recommendations`),
   recipes: () => request<Recipe[]>("/recipes"),
   recipe: (id: string) => request<Recipe>(`/recipes/${id}`),

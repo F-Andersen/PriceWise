@@ -1,68 +1,37 @@
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
-import { activePrice, hasActiveDiscount, roundMoney } from "../utils/money";
+import { compareBaskets, type BasketComparison, type LatestPriceInput } from "./basketComparison";
 
-export async function compareShoppingList(shoppingListId: string) {
+/**
+ * Loads a shopping list, the stores we collect from and the latest price of every
+ * list item in every store, then applies the comparison rules in basketComparison.ts.
+ */
+export async function compareShoppingList(shoppingListId: string): Promise<BasketComparison> {
   const list = await prisma.shoppingList.findUnique({
     where: { id: shoppingListId },
-    include: { items: { include: { product: true } } }
+    include: { items: { include: { product: { select: { id: true, name: true } } } } }
   });
-
   if (!list) throw new Error("Shopping list not found");
 
-  // Only stores we actually collect prices from take part in the comparison.
   const stores = await prisma.store.findMany({ where: collectedStoresWhere, orderBy: { name: "asc" } });
-  const results = await Promise.all(
-    stores.map(async (store) => {
-      let totalPrice = 0;
-      const missingProducts: string[] = [];
-      const foundItems = [];
+  const productIds = list.items.map((item) => item.productId);
 
-      for (const item of list.items) {
-        const latest = await prisma.price.findFirst({
-          where: { productId: item.productId, storeId: store.id },
-          orderBy: { dateCollected: "desc" }
-        });
+  // Newest row first; the first row seen per product and store is its latest price.
+  const rows = productIds.length
+    ? await prisma.price.findMany({
+        where: { productId: { in: productIds }, storeId: { in: stores.map((store) => store.id) } },
+        orderBy: [{ dateCollected: "desc" }, { id: "desc" }]
+      })
+    : [];
+  const latest = new Map<string, LatestPriceInput>();
+  for (const row of rows) {
+    const key = `${row.productId}:${row.storeId}`;
+    if (!latest.has(key)) latest.set(key, row);
+  }
 
-        if (!latest?.isAvailable) {
-          missingProducts.push(item.product.name);
-          continue;
-        }
-
-        const unitPrice = activePrice(latest);
-        const lineTotal = unitPrice * item.quantity;
-        totalPrice += lineTotal;
-        foundItems.push({
-          productId: item.productId,
-          productName: item.product.name,
-          quantity: item.quantity,
-          unitPrice: roundMoney(unitPrice),
-          lineTotal: roundMoney(lineTotal),
-          hasDiscount: hasActiveDiscount(latest)
-        });
-      }
-
-      return {
-        store,
-        totalPrice: roundMoney(totalPrice),
-        foundCount: foundItems.length,
-        missingCount: missingProducts.length,
-        missingProducts,
-        items: foundItems,
-        difference: 0,
-        isBest: false
-      };
-    })
-  );
-
-  const completeOrAny = results.filter((result) => result.foundCount > 0);
-  const bestTotal = Math.min(...completeOrAny.map((result) => result.totalPrice));
-
-  return results
-    .map((result) => ({
-      ...result,
-      difference: roundMoney(result.totalPrice - bestTotal),
-      isBest: result.totalPrice === bestTotal
-    }))
-    .sort((a, b) => a.totalPrice - b.totalPrice);
+  return compareBaskets({
+    items: list.items.map((item) => ({ productId: item.productId, productName: item.product.name, quantity: item.quantity })),
+    stores,
+    latestPrices: [...latest.values()]
+  });
 }
