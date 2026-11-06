@@ -1,111 +1,142 @@
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
+import {
+  MIN_SAVING_PERCENT,
+  bestOffer,
+  findAlternatives,
+  periodsFromHistory,
+  timeWeightedAverage,
+  type LatestPrice,
+  type ProductWithLatest
+} from "./recommendations";
 
-export async function getAlternatives(productId: string) {
-  const product = await prisma.product.findUnique({ where: { id: productId } });
-  if (!product) throw new Error("Product not found");
+const DAY = 24 * 60 * 60 * 1000;
 
-  const currentMin = await getMinCurrentPrice(productId);
-  if (!currentMin) return [];
-
-  const candidates = await prisma.product.findMany({
-    where: { category: product.category, id: { not: product.id } },
-    include: { prices: { where: { store: collectedStoresWhere }, orderBy: { dateCollected: "desc" }, include: { store: true } } }
+/** All products with their newest price row per collected store. */
+async function catalogWithLatest() {
+  const products = await prisma.product.findMany({
+    include: {
+      prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] }
+    }
   });
-
-  return candidates
-    .map((candidate) => {
-      const minPrice = latestMinPrice(candidate.prices);
-      if (!minPrice || minPrice.value >= currentMin.value) return null;
-      return {
-        product: candidate,
-        store: minPrice.store,
-        price: minPrice.value,
-        saveAmount: roundMoney(currentMin.value - minPrice.value)
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => (b?.saveAmount || 0) - (a?.saveAmount || 0))
-    .slice(0, 5);
+  return products.map((product) => {
+    const seen = new Set<string>();
+    const latest: LatestPrice[] = [];
+    for (const price of product.prices) {
+      if (seen.has(price.storeId)) continue;
+      seen.add(price.storeId);
+      latest.push(price);
+    }
+    const { prices: _prices, ...rest } = product;
+    return { product: rest, withLatest: { id: product.id, name: product.name, volume: product.volume, latest } satisfies ProductWithLatest };
+  });
 }
 
-export async function getShoppingListRecommendations(shoppingListId: string) {
-  const list = await prisma.shoppingList.findUnique({
-    where: { id: shoppingListId },
-    include: { items: { include: { product: true } } }
-  });
-  if (!list) throw new Error("Shopping list not found");
+/** Cheaper products of the same kind, compared per kg / l / piece. */
+export async function getAlternatives(productId: string) {
+  const catalog = await catalogWithLatest();
+  const target = catalog.find((entry) => entry.product.id === productId);
+  if (!target) throw new Error("Product not found");
 
+  const byId = new Map(catalog.map((entry) => [entry.product.id, entry.product]));
+  return findAlternatives(target.withLatest, catalog.map((entry) => entry.withLatest)).map((alternative) => ({
+    product: byId.get(alternative.productId)!,
+    store: alternative.offer.store,
+    packPrice: alternative.offer.packPrice,
+    unitPrice: alternative.offer.unitPrice,
+    unit: alternative.offer.unit,
+    targetUnitPrice: alternative.targetUnitPrice,
+    savingPercent: alternative.savingPercent
+  }));
+}
+
+/**
+ * Tips for a shopping list, at most one of each type per item:
+ * - alternative: a cheaper product of the same kind, per unit;
+ * - discount: the deepest running promotion for the item, with its end date;
+ * - below_average: the cheapest current price is at least 5% under its own
+ *   time-weighted 30-day average (needs a week of history).
+ */
+export async function getShoppingListRecommendations(shoppingListId: string) {
+  const list = await prisma.shoppingList.findUnique({ where: { id: shoppingListId }, include: { items: true } });
+  if (!list) throw new Error("Shopping list not found");
+  if (!list.items.length) return [];
+
+  const catalog = await catalogWithLatest();
+  const byId = new Map(catalog.map((entry) => [entry.product.id, entry]));
+  const now = new Date();
+  const windowStart = new Date(now.getTime() - 30 * DAY);
   const recommendations = [];
+
   for (const item of list.items) {
-    const alternatives = await getAlternatives(item.productId);
-    if (alternatives[0]) {
+    const entry = byId.get(item.productId);
+    if (!entry) continue;
+    const product = entry.product;
+
+    const [alternative] = findAlternatives(entry.withLatest, catalog.map((other) => other.withLatest), { now, limit: 1 });
+    if (alternative) {
+      const other = byId.get(alternative.productId)!.product;
       recommendations.push({
         type: "alternative",
-        message: `Можна замінити ${item.product.name} на ${alternatives[0].product.name} і зекономити ${roundMoney(alternatives[0].saveAmount * item.quantity)} грн`,
-        product: item.product,
-        alternative: alternatives[0].product,
-        saveAmount: roundMoney(alternatives[0].saveAmount * item.quantity)
+        message: `${other.name} у ${alternative.offer.store.name} дешевший на ${alternative.savingPercent}% за ${alternative.offer.unit}, ніж ${product.name}`,
+        product,
+        alternative: other,
+        store: alternative.offer.store,
+        savingPercent: alternative.savingPercent,
+        unit: alternative.offer.unit,
+        unitPrice: alternative.offer.unitPrice,
+        targetUnitPrice: alternative.targetUnitPrice
       });
     }
 
-    const latestPrices = await prisma.price.findMany({
-      where: { productId: item.productId, store: collectedStoresWhere },
-      orderBy: { dateCollected: "desc" },
-      include: { store: true }
-    });
-
-    // Newest row per store only; an older discounted row may describe an ended promotion.
-    const seenStores = new Set<string>();
-    for (const price of latestPrices) {
-      if (seenStores.has(price.storeId)) continue;
-      seenStores.add(price.storeId);
-      if (price.isAvailable && hasActiveDiscount(price)) {
-        recommendations.push({
-          type: "discount",
-          message: `${item.product.name} має акційну ціну в ${price.store.name}: ${toNumber(price.discountPrice)} грн`,
-          product: item.product,
-          store: price.store
-        });
-      }
-
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const history = await prisma.price.findMany({
-        where: { productId: item.productId, storeId: price.storeId, dateCollected: { gte: since } }
+    const discounts = entry.withLatest.latest
+      .filter((row) => row.isAvailable && hasActiveDiscount(row, now) && row.oldPrice)
+      .map((row) => {
+        const price = activePrice(row, now);
+        const oldPrice = toNumber(row.oldPrice);
+        return { row, price, oldPrice, percent: Math.round(((oldPrice - price) / oldPrice) * 100) };
+      })
+      .sort((a, b) => b.percent - a.percent);
+    if (discounts[0]) {
+      const { row, price, oldPrice, percent } = discounts[0];
+      recommendations.push({
+        type: "discount",
+        message: `${product.name}: акція в ${row.store.name}, ${roundMoney(price)} грн замість ${roundMoney(oldPrice)} грн (−${percent}%)`,
+        product,
+        store: row.store,
+        price: roundMoney(price),
+        oldPrice: roundMoney(oldPrice),
+        discountPercent: percent,
+        promoEndsAt: row.promoEndsAt
       });
-      const average = history.reduce((sum, point) => sum + activePrice(point), 0) / Math.max(history.length, 1);
-      if (activePrice(price) < average) {
+    }
+
+    const offer = bestOffer(entry.withLatest, now);
+    if (offer) {
+      const history = await prisma.price.findMany({
+        where: { productId: product.id, storeId: offer.store.id, lastSeenAt: { gte: windowStart } },
+        orderBy: { dateCollected: "asc" }
+      });
+      const average = timeWeightedAverage(
+        periodsFromHistory(history.map((row) => ({ value: activePrice(row, row.dateCollected), dateCollected: row.dateCollected, lastSeenAt: row.lastSeenAt }))),
+        windowStart,
+        now
+      );
+      if (average && offer.packPrice <= average * (1 - MIN_SAVING_PERCENT / 100)) {
+        const belowPercent = Math.round(((average - offer.packPrice) / average) * 100);
         recommendations.push({
           type: "below_average",
-          message: `${item.product.name} у ${price.store.name}: ціна нижча за середню за 30 днів`,
-          product: item.product,
-          store: price.store
+          message: `${product.name} у ${offer.store.name}: ${offer.packPrice} грн, на ${belowPercent}% нижче за середню ціну за 30 днів (${average} грн)`,
+          product,
+          store: offer.store,
+          price: offer.packPrice,
+          average,
+          belowPercent
         });
       }
     }
   }
 
-  return recommendations.slice(0, 12);
-}
-
-async function getMinCurrentPrice(productId: string) {
-  const prices = await prisma.price.findMany({
-    where: { productId, isAvailable: true, store: collectedStoresWhere },
-    orderBy: { dateCollected: "desc" },
-    include: { store: true }
-  });
-  return latestMinPrice(prices);
-}
-
-function latestMinPrice(prices: Array<{ price: any; discountPrice: any; store: any; storeId: string }>) {
-  const byStore = new Map<string, (typeof prices)[number]>();
-  for (const price of prices) {
-    if (!byStore.has(price.storeId)) byStore.set(price.storeId, price);
-  }
-
-  return Array.from(byStore.values())
-    .map((price) => ({ store: price.store, value: activePrice(price) }))
-    .sort((a, b) => a.value - b.value)[0];
+  return recommendations;
 }
