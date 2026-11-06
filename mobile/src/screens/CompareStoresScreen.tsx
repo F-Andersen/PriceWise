@@ -6,7 +6,7 @@ import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, Section
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { BasketComparison, BasketVerdict, ComparisonResult, Recommendation } from "../types";
-import { countLabel, formatDate, formatPrice, isStale } from "../utils/prices";
+import { countLabel, formatDate, formatPrice, isStale, promoUntilLabel } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function Coverage({ found, total }: { found: number; total: number }) {
@@ -145,7 +145,8 @@ export function CompareStoresScreen() {
   const noData = stores.filter((item) => item.status === "no_data");
   const storeName = (id: string) => stores.find((item) => item.store.id === id)?.store.name ?? "";
   const collectedAt = stores.flatMap((item) => item.items.map((line) => line.checkedAt)).sort().pop() ?? null;
-  const discounts = recommendations.filter((item) => item.type !== "alternative");
+  const discounts = recommendations.filter((item) => item.type === "discount");
+  const belowAverage = recommendations.filter((item) => item.type === "below_average");
   const replacements = recommendations.filter((item) => item.type === "alternative" && item.product && item.alternative);
 
   return (
@@ -181,10 +182,16 @@ export function CompareStoresScreen() {
               </>
             ) : null}
 
-            {discounts.length || replacements.length ? <SectionHeader title="Підказки" subtitle="Автоматичні: перевірте, чи вони вам підходять" /> : null}
+            {discounts.length || replacements.length || belowAverage.length ? <SectionHeader title="Підказки" subtitle="Автоматичні: перевірте, чи вони вам підходять" /> : null}
             {discounts.map((item, index) => (
               <View key={`discount-${index}`} style={styles.tip}>
-                <Badge label="Акція" tone="deal" />
+                <Badge label={item.promoEndsAt ? `Акція ${promoUntilLabel(item.promoEndsAt)}` : "Акція"} tone="deal" />
+                <Text style={[type.small, styles.tipText]}>{item.message}</Text>
+              </View>
+            ))}
+            {belowAverage.map((item, index) => (
+              <View key={`below-${index}`} style={styles.tip}>
+                <Badge label="Нижче середньої" tone="primary" />
                 <Text style={[type.small, styles.tipText]}>{item.message}</Text>
               </View>
             ))}
@@ -192,8 +199,8 @@ export function CompareStoresScreen() {
               <View key={`replacement-${index}`} style={styles.tip}>
                 <Badge label="Інший товар" tone="similar" icon="similar" />
                 <Text style={[type.small, styles.tipText]}>
-                  Можлива заміна: {item.product!.name} → {item.alternative!.name}. Система могла помилитися: це не той самий продукт.
-                  {item.saveAmount ? ` Різниця в базі: ${formatPrice(item.saveAmount)}.` : ""}
+                  Можлива заміна: {item.product!.name} → {item.alternative!.name}
+                  {item.unitPrice && item.unit ? ` (${formatPrice(item.unitPrice)}/${item.unit} у ${item.store?.name}, на ${item.savingPercent}% дешевше за ${item.unit})` : ""}. Це інший товар того самого виду: перевірте склад, жирність і обсяг.
                 </Text>
               </View>
             ))}

@@ -166,7 +166,7 @@ export function ProductDetailsScreen() {
           <Notice tone="neutral" icon="info" text={distinctDates === 1 ? "Ціни зібрано лише за одну дату, тому динаміку поки показати неможливо." : "Історії цін поки немає."} />
         )}
 
-        <SectionHeader title="Схожі дешевші товари" subtitle="Інші товари. Порівняйте склад та обсяг" />
+        <SectionHeader title="Дешевше за одиницю" subtitle="Той самий вид продукту іншого виробника. Ціна порівнюється за кг, л або шт" />
         {alternatives.length ? (
           <Card style={styles.listCard}>
             {alternatives.map((item, index) => (
@@ -178,14 +178,16 @@ export function ProductDetailsScreen() {
               >
                 <View style={styles.flex}>
                   <Text style={type.bodyStrong} numberOfLines={2}>{item.product.name}</Text>
-                  <Text style={type.small}>Дешевше на {formatPrice(item.saveAmount)} за даними на дату збору</Text>
+                  <Text style={type.small}>
+                    На {item.savingPercent}% дешевше за {item.unit}: {formatPrice(item.unitPrice)}/{item.unit} у {item.store.name} (тут від {formatPrice(item.targetUnitPrice)}/{item.unit})
+                  </Text>
                 </View>
                 <Icon name="chevronRight" size={18} color={colors.muted} />
               </Pressable>
             ))}
           </Card>
         ) : (
-          <Text style={[type.body, styles.emptyText]}>Дешевших схожих товарів у базі не знайдено.</Text>
+          <Text style={[type.body, styles.emptyText]}>Дешевшого товару того самого виду в базі не знайдено.</Text>
         )}
       </View>
     </ScrollView>
