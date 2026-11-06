@@ -9,6 +9,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "monitor:prices": "tsx src/modules/priceMonitoring/runPriceCollection.ts",
+    "catalog:merge-fresh": "tsx src/modules/priceMonitoring/runFreshMerge.ts",
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

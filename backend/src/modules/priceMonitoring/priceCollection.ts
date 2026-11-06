@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../../prisma";
+import { mergeFreshProduce } from "./freshProduceMatching";
 import { pruneOldPriceHistory } from "./priceHistory";
 import { syncPromotionPages } from "./promotionPageSync";
 import { syncZakazCatalog, type CatalogSyncOptions } from "./zakazCatalogSync";
@@ -71,8 +72,10 @@ export async function runPriceCollection(options: PriceCollectionOptions = {}) {
   try {
     const promotions = options.skipPromotions || dryRun ? [] : await syncPromotionPages(options.promoLimit ?? 12);
     const catalogue = await syncZakazCatalog(options);
+    // Weighed produce has no shared barcode: merge it across stores by name.
+    const freshMerges = dryRun ? [] : (await mergeFreshProduce()).filter((group) => group.status === "merged");
     const prunedRows = dryRun ? 0 : await pruneOldPriceHistory(historyRetentionDays());
-    return { promotions, ...catalogue, prunedRows };
+    return { promotions, ...catalogue, freshMerges, prunedRows };
   } finally {
     if (!dryRun) releaseLock();
   }
