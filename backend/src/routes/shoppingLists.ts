@@ -48,12 +48,14 @@ router.post("/:id/items", async (req: AuthRequest, res) => {
 router.put("/:id/items/:itemId", async (req: AuthRequest, res) => {
   const body = z.object({ quantity: z.number().int().positive() }).parse(req.body);
   await assertOwnsList(req.params.id, req.userId!);
+  await assertItemInList(req.params.itemId, req.params.id);
   const item = await prisma.shoppingListItem.update({ where: { id: req.params.itemId }, data: { quantity: body.quantity }, include: { product: true } });
   res.json(item);
 });
 
 router.delete("/:id/items/:itemId", async (req: AuthRequest, res) => {
   await assertOwnsList(req.params.id, req.userId!);
+  await assertItemInList(req.params.itemId, req.params.id);
   await prisma.shoppingListItem.delete({ where: { id: req.params.itemId } });
   res.status(204).send();
 });
@@ -67,6 +69,12 @@ router.get("/:id/recommendations", async (req: AuthRequest, res) => {
   await assertOwnsList(req.params.id, req.userId!);
   res.json(await getShoppingListRecommendations(req.params.id));
 });
+
+/** The item must belong to this (already owned) list, not to someone else's. */
+async function assertItemInList(itemId: string, shoppingListId: string) {
+  const item = await prisma.shoppingListItem.findFirst({ where: { id: itemId, shoppingListId } });
+  if (!item) throw new Error("Shopping list item not found");
+}
 
 async function assertOwnsList(id: string, userId: string) {
   const list = await prisma.shoppingList.findFirst({ where: { id, userId } });

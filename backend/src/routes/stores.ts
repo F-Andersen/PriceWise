@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 
@@ -16,7 +17,7 @@ router.get("/", async (_req, res) => {
   res.json(await prisma.store.findMany({ where: collectedStoresWhere, orderBy: { name: "asc" } }));
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   const store = await prisma.store.create({ data: storeSchema.parse(req.body) });
   res.status(201).json(store);
 });

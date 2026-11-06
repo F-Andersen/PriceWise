@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { getAlternatives } from "../services/recommendationService";
@@ -167,17 +168,17 @@ router.get("/:id/market-prices", async (req, res) => {
   res.json(rows);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAdmin, async (req, res) => {
   const product = await prisma.product.create({ data: productSchema.parse(req.body) });
   res.status(201).json(product);
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAdmin, async (req, res) => {
   const product = await prisma.product.update({ where: { id: req.params.id }, data: productSchema.partial().parse(req.body) });
   res.json(product);
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAdmin, async (req, res) => {
   await prisma.product.delete({ where: { id: req.params.id } });
   res.status(204).send();
 });
