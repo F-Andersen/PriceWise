@@ -78,6 +78,8 @@ export function ProductDetailsScreen() {
   const values = available.map(activePrice);
   const lowest = values.length ? Math.min(...values) : null;
   const average = values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100 : null;
+  /** Товари на вагу, об'єднані між магазинами за назвою (див. backend freshProduceMatching). */
+  const isWeighedProduce = product.barcode.startsWith("fresh:");
   const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(checkedAt(price)) > +new Date(date) ? checkedAt(price) : date), null);
 
   const history = (product.prices || []).slice(-8);
@@ -117,7 +119,10 @@ export function ProductDetailsScreen() {
 
         <FreshnessNotice collectedAt={newest} />
 
-        <SectionHeader title="Ціни в магазинах" subtitle="Цей самий товар" />
+        <SectionHeader title="Ціни в магазинах" subtitle={isWeighedProduce ? "Той самий продукт на вагу" : "Цей самий товар"} />
+        {isWeighedProduce && exact.length > 1 ? (
+          <Notice tone="neutral" icon="info" text="Овочі й фрукти на вагу не мають спільного штрихкоду, тому ціни магазинів об'єднано за назвою. Сорт, калібр і країна походження можуть відрізнятися." />
+        ) : null}
         {exact.length ? (
           <Card style={styles.listCard}>
             {exact.map((price, index) => (

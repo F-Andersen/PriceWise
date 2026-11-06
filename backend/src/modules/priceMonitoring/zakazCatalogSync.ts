@@ -208,7 +208,7 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
           product: product.name,
           store: store.name,
           status: "skipped",
-          reason: kind === "invalid" ? "Invalid barcode" : "Store-internal code, not matched across stores"
+          reason: "No global barcode and no known page in this store"
         });
         continue;
       }
