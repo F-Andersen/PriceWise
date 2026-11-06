@@ -52,6 +52,7 @@ router.get("/", async (req, res) => {
         saveAmount: roundMoney(saveAmount),
         discountPercent,
         dateCollected: price.dateCollected,
+        lastSeenAt: price.lastSeenAt,
         promoEndsAt: price.promoEndsAt,
         label: "Акція"
       };

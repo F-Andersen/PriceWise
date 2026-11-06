@@ -29,6 +29,11 @@ export function promoUntilLabel(value: string | Date) {
   return `до ${String(date.getDate()).padStart(2, "0")}.${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Коли ціну востаннє підтвердив збір — саме це «станом на» для покупця. */
+export function checkedAt(price: { dateCollected: string; lastSeenAt?: string }) {
+  return price.lastSeenAt ?? price.dateCollected;
+}
+
 export function latestByStore(prices: Price[] = []) {
   const map = new Map<string, Price>();
   for (const price of [...prices].sort((a, b) => +new Date(b.dateCollected) - +new Date(a.dateCollected))) {
@@ -122,7 +127,8 @@ export function latestCollectedAt(products: Product[]) {
   let latest: string | null = null;
   for (const product of products) {
     for (const price of product.prices || []) {
-      if (!latest || +new Date(price.dateCollected) > +new Date(latest)) latest = price.dateCollected;
+      const seen = checkedAt(price);
+      if (!latest || +new Date(seen) > +new Date(latest)) latest = seen;
     }
   }
   return latest;

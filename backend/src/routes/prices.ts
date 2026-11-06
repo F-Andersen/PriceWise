@@ -34,7 +34,8 @@ router.get("/history/:productId", async (req, res) => {
 
 router.post("/", async (req, res) => {
   const data = priceSchema.parse(req.body);
-  const price = await prisma.price.create({ data: { ...data, dateCollected: data.dateCollected || new Date() } });
+  const collectedAt = data.dateCollected || new Date();
+  const price = await prisma.price.create({ data: { ...data, dateCollected: collectedAt, lastSeenAt: collectedAt } });
   res.status(201).json(price);
 });
 

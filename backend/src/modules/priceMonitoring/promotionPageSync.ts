@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../../prisma";
 import { roundMoney } from "../../utils/money";
 import { classifyBarcode } from "./gtin";
@@ -186,7 +185,7 @@ async function resolveBarcode(product: ParsedPromotion, host: string) {
   return source?.product.barcode ?? `${host}:${product.barcode}`;
 }
 
-async function upsertPromotion(product: ParsedPromotion, storeId: string, host: string, collectedAt: Date) {
+async function upsertPromotion(product: ParsedPromotion, storeId: string, host: string) {
   const barcode = await resolveBarcode(product, host);
   const createdProduct = await prisma.product.upsert({
     where: { barcode },
@@ -223,25 +222,13 @@ async function upsertPromotion(product: ParsedPromotion, storeId: string, host: 
       storeId
     }
   });
-
-  await prisma.price.create({
-    data: {
-      productId: createdProduct.id,
-      storeId,
-      price: new Prisma.Decimal(product.price),
-      oldPrice: new Prisma.Decimal(product.oldPrice),
-      discountPrice: new Prisma.Decimal(product.price),
-      dateCollected: collectedAt,
-      isAvailable: true,
-      imageUrl: product.imageUrl,
-      sourceUrl: product.sourceUrl
-    }
-  });
+  // No price row here: the catalogue step right after this visits every product
+  // (including the ones just added) and records the price with its promotion end
+  // date, which promotion tiles do not show.
 }
 
 export async function syncPromotionPages(limitPerStore = 12) {
   const results = [];
-  const collectedAt = new Date();
   const stores = await ensureZakazStores();
 
   for (const [index, source] of promotionSources.entries()) {
@@ -257,7 +244,7 @@ export async function syncPromotionPages(limitPerStore = 12) {
       const promotions = parseZakazPromotions(html, source.url, limitPerStore);
 
       for (const promotion of promotions) {
-        await upsertPromotion(promotion, store.id, source.host, collectedAt);
+        await upsertPromotion(promotion, store.id, source.host);
       }
 
       results.push({ store: source.storeName, url: source.url, status: "created", count: promotions.length });

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Offer } from "../types";
-import { formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
+import { checkedAt, formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
 import { colors, radii, shadow, spacing, type } from "../utils/theme";
 import { Badge, IconButton, ProductImage } from "./ui";
 
@@ -14,7 +14,7 @@ type Props = {
 export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
   const imageUrl = offer.imageUrl || offer.product.imageUrl;
   const isList = layout === "list";
-  const a11y = `${offer.product.name}, ${offer.store.name}. ${formatPrice(offer.price)}, була ${formatPrice(offer.oldPrice)}, знижка ${offer.discountPercent}%${offer.promoEndsAt ? `, акція ${promoUntilLabel(offer.promoEndsAt)}` : ""}. Станом на ${formatDate(offer.dateCollected)}`;
+  const a11y = `${offer.product.name}, ${offer.store.name}. ${formatPrice(offer.price)}, була ${formatPrice(offer.oldPrice)}, знижка ${offer.discountPercent}%${offer.promoEndsAt ? `, акція ${promoUntilLabel(offer.promoEndsAt)}` : ""}. Станом на ${formatDate(checkedAt(offer))}`;
 
   const details = (
     <>
@@ -25,7 +25,7 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
         <Text style={styles.oldPrice}>{formatPrice(offer.oldPrice)}</Text>
       </View>
       {offer.promoEndsAt ? <Text style={styles.promoEnd}>акція {promoUntilLabel(offer.promoEndsAt)}</Text> : null}
-      <Text style={styles.date}>станом на {formatDate(offer.dateCollected)}</Text>
+      <Text style={styles.date}>станом на {formatDate(checkedAt(offer))}</Text>
     </>
   );
 
