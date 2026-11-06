@@ -1,11 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from "react";
-import { api, setAuthToken } from "./api";
+import { api, setAuthToken, setUnauthorizedHandler } from "./api";
 
 type AuthContextValue = {
   token: string | null;
   email: string | null;
   isReady: boolean;
+  /** True after the server rejected the saved session; shown on the login screen. */
+  sessionExpired: boolean;
   signIn: (email: string, password: string, mode: "login" | "register") => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -16,6 +18,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [token, setToken] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [isReady, setReady] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setAuthToken(null);
+      setToken(null);
+      setSessionExpired(true);
+      AsyncStorage.multiRemove(["token", "activeListId"]).catch(() => undefined);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     AsyncStorage.multiGet(["token", "email"]).then((values) => {
@@ -32,10 +45,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
       token,
       email,
       isReady,
+      sessionExpired,
       signIn: async (nextEmail, password, mode) => {
         const result = mode === "login" ? await api.login(nextEmail, password) : await api.register(nextEmail, password);
         setToken(result.token);
         setAuthToken(result.token);
+        setSessionExpired(false);
         setEmail(result.user.email);
         await AsyncStorage.multiSet([
           ["token", result.token],
@@ -49,7 +64,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         await AsyncStorage.multiRemove(["token", "email", "activeListId"]);
       }
     }),
-    [email, isReady, token]
+    [email, isReady, sessionExpired, token]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -47,6 +47,13 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+let onUnauthorized: (() => void) | null = null;
+
+/** Called when the server rejects our token (expired, or signed with another key). */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -56,6 +63,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...(options.headers || {})
     }
   });
+  if (response.status === 401 && authToken && !path.startsWith("/auth/")) {
+    // The saved session is no longer valid: drop it so the app shows the login screen
+    // instead of screens that silently fail.
+    onUnauthorized?.();
+    throw new Error("Сесія завершилась. Увійдіть знову.");
+  }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "API request failed" }));
     throw new Error(error.message);

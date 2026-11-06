@@ -7,7 +7,7 @@ import { useAuth } from "../services/AuthContext";
 import { colors, radii, spacing, type } from "../utils/theme";
 
 export function AuthScreen() {
-  const { signIn } = useAuth();
+  const { signIn, sessionExpired } = useAuth();
   const [email, setEmail] = useState("demo@example.com");
   const [password, setPassword] = useState("password123");
   const [pending, setPending] = useState<"login" | "register" | null>(null);
@@ -41,6 +41,7 @@ export function AuthScreen() {
         <Text nativeID="password-label" style={styles.label}>Пароль</Text>
         <TextInput accessibilityLabel="Пароль" autoComplete="password" style={styles.input} value={password} onChangeText={setPassword} secureTextEntry />
 
+        {sessionExpired && !error ? <View style={styles.error}><Notice icon="info" tone="neutral" title="Сесія завершилась" text="Увійдіть знову, щоб побачити кошик і профіль." /></View> : null}
         {error ? <View style={styles.error}><Notice icon="alert" title="Не вдалося увійти" text={error} /></View> : null}
 
         <View style={styles.actions}>
