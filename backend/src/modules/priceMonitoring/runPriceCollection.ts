@@ -39,7 +39,7 @@ async function main() {
   }
   console.log(`Catalogue by barcode${dryRun ? " (dry run, nothing written)" : ""}, collected at ${collectedAt.toISOString()}`);
   if (flag("verbose")) console.table(rows);
-  else console.table(rows.filter((row) => row.status === "error" || row.status === "marked_unavailable"));
+  else console.table(rows.filter((row) => row.status === "error" || row.status === "marked_unavailable" || row.status === "unconfirmed"));
   console.table(summary);
   if (freshMerges.length) {
     console.log("Fresh produce merged across stores");

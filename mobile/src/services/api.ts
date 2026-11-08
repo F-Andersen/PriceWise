@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from "react-native";
-import { BasketComparison, MarketPrice, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { Alternative, BasketComparison, MarketPrice, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
 const FALLBACK_LAN_HOST = "192.168.0.221";
 
@@ -84,7 +84,7 @@ export const api = {
   searchProducts: (query: string) => request<Product[]>(`/products/search?query=${encodeURIComponent(query)}`),
   product: (id: string) => request<Product>(`/products/${id}`),
   marketPrices: (id: string) => request<MarketPrice[]>(`/products/${id}/market-prices`),
-  alternatives: (id: string) => request<any[]>(`/products/${id}/alternatives`),
+  alternatives: (id: string) => request<Alternative[]>(`/products/${id}/alternatives`),
   stores: () => request<Store[]>("/stores"),
   offers: (storeId?: string) => request<Offer[]>(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`),
   lists: () => request<ShoppingList[]>("/shopping-lists"),
@@ -94,7 +94,7 @@ export const api = {
   updateItem: (listId: string, itemId: string, quantity: number) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "PUT", body: JSON.stringify({ quantity }) }),
   deleteItem: (listId: string, itemId: string) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "DELETE" }),
   compare: (listId: string) => request<BasketComparison>(`/shopping-lists/${listId}/compare`),
-  recommendations: (listId: string) => request<any[]>(`/shopping-lists/${listId}/recommendations`),
+  recommendations: (listId: string) => request<Recommendation[]>(`/shopping-lists/${listId}/recommendations`),
   recipes: () => request<Recipe[]>("/recipes"),
   recipe: (id: string) => request<Recipe>(`/recipes/${id}`),
   addRecipeToList: (recipeId: string, shoppingListId?: string) => request<ShoppingList>(`/recipes/${recipeId}/add-to-shopping-list`, { method: "POST", body: JSON.stringify({ shoppingListId }) })

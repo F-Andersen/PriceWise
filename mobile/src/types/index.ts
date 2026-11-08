@@ -103,17 +103,34 @@ export type BasketComparison = {
 };
 
 export type Recommendation = {
-  type: string;
+  type: "alternative" | "discount" | "below_average";
   message: string;
-  saveAmount?: number;
   product?: Product;
   alternative?: Product;
   store?: Store;
+  /** alternative: на скільки дешевше за одиницю, одиниця та ціни за неї. */
+  savingPercent?: number;
+  unit?: "кг" | "л" | "шт";
+  unitPrice?: number;
+  targetUnitPrice?: number;
+  /** discount / below_average */
+  price?: number;
+  oldPrice?: number;
+  discountPercent?: number;
+  promoEndsAt?: string | null;
+  average?: number;
+  belowPercent?: number;
 };
 
+/** Дешевший товар того самого виду; ціни порівнюються за кг, л або шт. */
 export type Alternative = {
   product: Product;
-  saveAmount: number;
+  store: Store;
+  packPrice: number;
+  unitPrice: number;
+  unit: "кг" | "л" | "шт";
+  targetUnitPrice: number;
+  savingPercent: number;
 };
 
 export type Recipe = {
