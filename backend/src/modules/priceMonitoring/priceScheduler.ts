@@ -1,4 +1,4 @@
-import { CollectionAlreadyRunningError, lastCollectedAt, runPriceCollection } from "./priceCollection";
+import { CollectionAlreadyRunningError, lastCollectedAt, runPriceCollection, type CollectionTrigger } from "./priceCollection";
 
 /**
  * Collects prices on a daily schedule inside the API process, so prices stay
@@ -51,10 +51,10 @@ export function longestGapMs(times: Time[]) {
 
 const log = (message: string) => console.log(`[prices] ${new Date().toISOString()} ${message}`);
 
-async function collect(reason: string) {
+async function collect(reason: CollectionTrigger) {
   log(`collection started (${reason})`);
   try {
-    const { summary, prunedRows } = await runPriceCollection();
+    const { summary, prunedRows } = await runPriceCollection({}, reason);
     const line = summary.map((row) => `${row.store}: ${row.prices}`).join(", ");
     log(`collection finished: ${line}${prunedRows ? `; old history removed: ${prunedRows} rows` : ""}`);
   } catch (error) {

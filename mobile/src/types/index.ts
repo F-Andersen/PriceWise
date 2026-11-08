@@ -52,6 +52,23 @@ export type ShoppingList = {
   items: ShoppingListItem[];
 };
 
+/** Сторінка каталогу. categories рахуються без урахування вибраної категорії. */
+export type ProductPage = {
+  items: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  categories: Array<{ name: string; count: number }>;
+};
+
+export type CatalogSummary = {
+  total: number;
+  latestCheckedAt: string | null;
+  storesWithPrices: number;
+  cheapest: Product[];
+};
+
 /** Рядок кошика, знайдений у магазині. */
 export type ComparisonItem = {
   productId: string;

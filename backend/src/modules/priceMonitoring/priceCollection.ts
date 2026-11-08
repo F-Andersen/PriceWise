@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../../prisma";
+import { summarizeRun } from "./collectionLog";
 import { mergeFreshProduce } from "./freshProduceMatching";
 import { pruneOldPriceHistory } from "./priceHistory";
 import { syncPromotionPages } from "./promotionPageSync";
@@ -66,16 +67,53 @@ export class CollectionAlreadyRunningError extends Error {
   }
 }
 
-export async function runPriceCollection(options: PriceCollectionOptions = {}) {
+export type CollectionTrigger = "manual" | "scheduled" | "catch-up";
+
+/** The log must never be the reason a collection fails. */
+async function logSafely(action: () => Promise<unknown>) {
+  try {
+    await action();
+  } catch (error) {
+    console.error(`[prices] could not write the collection log: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
+export async function runPriceCollection(options: PriceCollectionOptions = {}, trigger: CollectionTrigger = "manual") {
   const dryRun = options.dryRun ?? false;
   if (!dryRun && !acquireLock()) throw new CollectionAlreadyRunningError();
+  let runId: string | null = null;
+  if (!dryRun) {
+    await logSafely(async () => {
+      // We hold the lock, so anything still "running" belongs to a process that died.
+      await prisma.collectionRun.updateMany({ where: { status: "running" }, data: { status: "interrupted", finishedAt: new Date() } });
+      runId = (await prisma.collectionRun.create({ data: { trigger, status: "running" } })).id;
+    });
+  }
   try {
     const promotions = options.skipPromotions || dryRun ? [] : await syncPromotionPages(options.promoLimit ?? 12);
     const catalogue = await syncZakazCatalog(options);
     // Weighed produce has no shared barcode: merge it across stores by name.
     const freshMerges = dryRun ? [] : (await mergeFreshProduce()).filter((group) => group.status === "merged");
     const prunedRows = dryRun ? 0 : await pruneOldPriceHistory(historyRetentionDays());
+    const finishedId = runId;
+    if (finishedId) {
+      const run = summarizeRun(catalogue.rows, promotions);
+      await logSafely(() =>
+        prisma.collectionRun.update({ where: { id: finishedId }, data: { ...run, stores: catalogue.summary, finishedAt: new Date() } })
+      );
+    }
     return { promotions, ...catalogue, freshMerges, prunedRows };
+  } catch (error) {
+    const failedId = runId;
+    if (failedId) {
+      await logSafely(() =>
+        prisma.collectionRun.update({
+          where: { id: failedId },
+          data: { status: "failed", finishedAt: new Date(), error: error instanceof Error ? error.message : String(error) }
+        })
+      );
+    }
+    throw error;
   } finally {
     if (!dryRun) releaseLock();
   }

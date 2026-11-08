@@ -81,6 +81,27 @@ model Price {
   @@index([lastSeenAt])
 }
 
+/// One price collection run: how it went and what could not be read.
+model CollectionRun {
+  id              String    @id @default(cuid())
+  /// manual, scheduled or catch-up
+  trigger         String
+  /// running, success, partial, failed or interrupted
+  status          String
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  productsChecked Int       @default(0)
+  pricesRecorded  Int       @default(0)
+  issuesCount     Int       @default(0)
+  /// Per-store counts from the run's summary.
+  stores          Json?
+  /// Pages or products that failed, capped so a bad run stays small.
+  issues          Json?
+  error           String?
+
+  @@index([startedAt])
+}
+
 model ShoppingList {
   id        String             @id @default(cuid())
   userId    String
