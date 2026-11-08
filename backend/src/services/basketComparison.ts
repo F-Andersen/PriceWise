@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { isPriceFresh, maxPriceAgeMs } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney } from "../utils/money";
 
 /**
@@ -43,8 +44,13 @@ export type MissingLine = {
   productId: string;
   productName: string;
   quantity: number;
-  /** unavailable: the store's latest record says out of stock; no_price: no data for this store. */
-  reason: "unavailable" | "no_price";
+  /**
+   * unavailable: the store's latest record says out of stock; no_price: no data for
+   * this store; stale: we have a record, but no collection confirmed it recently.
+   */
+  reason: "unavailable" | "no_price" | "stale";
+  /** For stale items: when the price was last confirmed. */
+  checkedAt?: Date;
 };
 
 export type StoreBasket = {
@@ -77,6 +83,8 @@ export type BasketComparison = {
   itemCount: number;
   verdict: BasketVerdict;
   stores: StoreBasket[];
+  /** Store and item pairs left out because their price is no longer confirmed. */
+  staleCount: number;
 };
 
 export function compareBaskets(params: {
@@ -84,9 +92,11 @@ export function compareBaskets(params: {
   stores: StoreInput[];
   latestPrices: LatestPriceInput[];
   now?: Date;
+  maxAgeMs?: number;
 }): BasketComparison {
   const { items, stores, latestPrices } = params;
   const now = params.now ?? new Date();
+  const maxAgeMs = params.maxAgeMs ?? maxPriceAgeMs();
   const priceByKey = new Map(latestPrices.map((price) => [`${price.productId}:${price.storeId}`, price]));
 
   const baskets: StoreBasket[] = stores.map((store) => {
@@ -95,8 +105,18 @@ export function compareBaskets(params: {
 
     for (const item of items) {
       const price = priceByKey.get(`${item.productId}:${store.id}`);
-      if (!price || !price.isAvailable) {
-        missing.push({ productId: item.productId, productName: item.productName, quantity: item.quantity, reason: price ? "unavailable" : "no_price" });
+      const missingBase = { productId: item.productId, productName: item.productName, quantity: item.quantity };
+      if (!price) {
+        missing.push({ ...missingBase, reason: "no_price" });
+        continue;
+      }
+      // Checked before availability: an old "out of stock" is no more certain than an old price.
+      if (!isPriceFresh(price.lastSeenAt, now, maxAgeMs)) {
+        missing.push({ ...missingBase, reason: "stale", checkedAt: price.lastSeenAt });
+        continue;
+      }
+      if (!price.isAvailable) {
+        missing.push({ ...missingBase, reason: "unavailable" });
         continue;
       }
       const unitPrice = roundMoney(activePrice(price, now));
@@ -113,7 +133,7 @@ export function compareBaskets(params: {
 
     // no_data only when we know nothing about this store for the basket; a store whose
     // items are known but out of stock is a (0 of N) partial basket, not "no data".
-    const knowsSomething = lines.length > 0 || missing.some((line) => line.reason === "unavailable");
+    const knowsSomething = lines.length > 0 || missing.some((line) => line.reason !== "no_price");
     const status: StoreBasket["status"] = !knowsSomething ? "no_data" : missing.length === 0 ? "complete" : "partial";
     const checkedAt = lines.length ? new Date(Math.min(...lines.map((line) => line.checkedAt.getTime()))) : null;
     return {
@@ -159,5 +179,6 @@ export function compareBaskets(params: {
     verdict = { kind: "none_complete", partialCount: partial.length };
   }
 
-  return { itemCount: items.length, verdict, stores: [...complete, ...partial, ...noData] };
+  const staleCount = baskets.reduce((sum, basket) => sum + basket.missing.filter((line) => line.reason === "stale").length, 0);
+  return { itemCount: items.length, verdict, stores: [...complete, ...partial, ...noData], staleCount };
 }

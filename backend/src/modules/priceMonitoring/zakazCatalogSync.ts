@@ -3,7 +3,7 @@ import { prisma } from "../../prisma";
 import { roundMoney, toNumber } from "../../utils/money";
 import { classifyBarcode } from "./gtin";
 import { recordPriceObservation } from "./priceHistory";
-import { isSharpChange, recheckDelayMs, verifySharpChanges, type PendingCheck } from "./priceVerification";
+import { isSharpChange, looksLikeMassFailure, recheckDelayMs, verifySharpChanges, type PendingCheck } from "./priceVerification";
 import { BOT_HEADERS, REQUEST_DELAY_MS, ensureZakazStores, sleep, type ZakazStoreConfig } from "./zakazStores";
 
 /** Product fields we read from the page's embedded Next.js state. */
@@ -26,7 +26,9 @@ export type ZakazProduct = {
 
 type FetchOutcome =
   | { status: "found"; product: ZakazProduct; url: string }
-  | { status: "not_found"; reason: string }
+  // definite: the store really said so (404, price 0, another barcode). A page we could
+  // not read says nothing about the product, so it must not mark it out of stock.
+  | { status: "not_found"; reason: string; definite: boolean }
   | { status: "error"; reason: string };
 
 export type CatalogSyncRow = {
@@ -61,20 +63,20 @@ export function extractZakazProduct(html: string): ZakazProduct | null {
 async function fetchZakazProduct(url: string, expectedGtin14: string | null): Promise<FetchOutcome> {
   try {
     const response = await fetch(url, { headers: BOT_HEADERS, redirect: "follow", signal: AbortSignal.timeout(20000) });
-    if (response.status === 404) return { status: "not_found", reason: "404" };
+    if (response.status === 404) return { status: "not_found", reason: "404", definite: true };
     if (!response.ok) return { status: "error", reason: `HTTP ${response.status}` };
 
     const product = extractZakazProduct(await response.text());
-    if (!product) return { status: "not_found", reason: "No product data on page" };
+    if (!product) return { status: "not_found", reason: "No product data on page", definite: false };
 
     // Exact match only: the page must describe the same barcode we asked for.
     if (expectedGtin14 && product.ean.padStart(14, "0") !== expectedGtin14) {
-      return { status: "not_found", reason: `Barcode mismatch (${product.ean})` };
+      return { status: "not_found", reason: `Barcode mismatch (${product.ean})`, definite: true };
     }
 
     // The platform renders a page for any known GTIN, even if this store never sold it:
     // price 0 means "not in this store's assortment", not "free".
-    if (product.price <= 0) return { status: "not_found", reason: "Not in store assortment (price 0)" };
+    if (product.price <= 0) return { status: "not_found", reason: "Not in store assortment (price 0)", definite: true };
 
     return { status: "found", product, url: product.web_url ?? response.url };
   } catch (error) {
@@ -206,6 +208,9 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
 
   const rows: CatalogSyncRow[] = [];
   const pendingChecks: PendingCheck<RecheckItem>[] = [];
+  // Newly vanished products per store, applied after the pass once we know how many there are.
+  const goneCandidates = new Map<string, Array<{ product: Product; store: Store; reason: string }>>();
+  const knownChecked = new Map<string, number>();
   let firstRequest = true;
   const politeFetch = async (url: string, gtin14: string | null) => {
     if (!firstRequest) await sleep(REQUEST_DELAY_MS);
@@ -237,6 +242,7 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
         continue;
       }
 
+      if (knownSource) knownChecked.set(store.id, (knownChecked.get(store.id) ?? 0) + 1);
       let outcome = await politeFetch(url, expected);
       // Barcode lookup failed but we already know this store's page: check it directly
       // (still requiring the same barcode for global GTINs).
@@ -260,10 +266,31 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
           rows.push(await recordFound(product, store, outcome, collectedAt, dryRun));
         }
       } else if (outcome.status === "not_found") {
-        rows.push(knownSource ? await recordGone(product, store, collectedAt, outcome.reason, dryRun) : { product: product.name, store: store.name, status: "not_found", reason: outcome.reason });
+        if (!knownSource) {
+          rows.push({ product: product.name, store: store.name, status: "not_found", reason: outcome.reason });
+        } else if (!outcome.definite) {
+          rows.push({ product: product.name, store: store.name, status: "unconfirmed", reason: outcome.reason });
+        } else {
+          const last = await prisma.price.findFirst({ where: { productId: product.id, storeId: store.id }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] });
+          if (last?.isAvailable) {
+            goneCandidates.set(store.id, [...(goneCandidates.get(store.id) ?? []), { product, store, reason: outcome.reason }]);
+          } else {
+            rows.push(await recordGone(product, store, collectedAt, outcome.reason, dryRun)); // only confirms it
+          }
+        }
       } else {
         rows.push({ product: product.name, store: store.name, status: "error", reason: outcome.reason });
       }
+    }
+  }
+
+  for (const [storeId, candidates] of goneCandidates) {
+    const known = knownChecked.get(storeId) ?? 0;
+    if (looksLikeMassFailure(candidates.length, known)) {
+      console.warn(`[prices] mass disappearance ignored ${JSON.stringify({ store: candidates[0].store.name, gone: candidates.length, known, reasons: [...new Set(candidates.map((item) => item.reason))] })}`);
+      rows.push(...candidates.map(({ product, store, reason }) => ({ product: product.name, store: store.name, status: "unconfirmed" as const, reason: `Too many products vanished at once; not marked out of stock (${reason})` })));
+    } else {
+      for (const { product, store, reason } of candidates) rows.push(await recordGone(product, store, collectedAt, reason, dryRun));
     }
   }
 
