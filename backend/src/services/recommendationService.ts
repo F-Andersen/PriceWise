@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
+import { productKind } from "./productKind";
 import {
   MIN_SAVING_PERCENT,
   bestOffer,
@@ -14,11 +15,25 @@ import {
 
 const DAY = 24 * 60 * 60 * 1000;
 
-/** All products with their newest price row per collected store. */
-async function catalogWithLatest(excludedStoreIds: string[]) {
+/**
+ * The given products plus possible replacements for them, each with its newest price
+ * per store. A replacement must be the same kind of product, so only names starting
+ * with the same word are loaded (and meat, whose cuts are named in varying word order);
+ * findAlternatives makes the exact decision. This keeps the query small on a large catalogue.
+ */
+async function catalogWithLatest(targets: Array<{ id: string; name: string }>, excludedStoreIds: string[]) {
+  const headWords = [...new Set(targets.map((target) => target.name.trim().split(/\s+/)[0]).filter(Boolean))];
+  const hasMeat = targets.some((target) => productKind(target.name)?.startsWith("meat:"));
   const products = await prisma.product.findMany({
+    where: {
+      OR: [
+        { id: { in: targets.map((target) => target.id) } },
+        ...headWords.map((word) => ({ name: { startsWith: word, mode: "insensitive" as const } })),
+        ...(hasMeat ? [{ category: "М'ясо" }] : [])
+      ]
+    },
     include: {
-      prices: { where: { store: selectedStoresWhere(excludedStoreIds) }, include: { store: true }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] }
+      prices: { where: { store: selectedStoresWhere(excludedStoreIds) }, include: { store: true }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }], distinct: ["storeId"] }
     }
   });
   return products.map((product) => {
@@ -36,9 +51,10 @@ async function catalogWithLatest(excludedStoreIds: string[]) {
 
 /** Cheaper products of the same kind, compared per kg / l / piece. */
 export async function getAlternatives(productId: string, excludedStoreIds: string[] = []) {
-  const catalog = await catalogWithLatest(excludedStoreIds);
-  const target = catalog.find((entry) => entry.product.id === productId);
-  if (!target) throw new Error("Product not found");
+  const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, name: true } });
+  if (!product) throw new Error("Product not found");
+  const catalog = await catalogWithLatest([product], excludedStoreIds);
+  const target = catalog.find((entry) => entry.product.id === productId)!;
 
   const byId = new Map(catalog.map((entry) => [entry.product.id, entry.product]));
   return findAlternatives(target.withLatest, catalog.map((entry) => entry.withLatest)).map((alternative) => ({
@@ -60,11 +76,14 @@ export async function getAlternatives(productId: string, excludedStoreIds: strin
  *   time-weighted 30-day average (needs a week of history).
  */
 export async function getShoppingListRecommendations(shoppingListId: string, excludedStoreIds: string[] = []) {
-  const list = await prisma.shoppingList.findUnique({ where: { id: shoppingListId }, include: { items: true } });
+  const list = await prisma.shoppingList.findUnique({
+    where: { id: shoppingListId },
+    include: { items: { include: { product: { select: { id: true, name: true } } } } }
+  });
   if (!list) throw new Error("Shopping list not found");
   if (!list.items.length) return [];
 
-  const catalog = await catalogWithLatest(excludedStoreIds);
+  const catalog = await catalogWithLatest(list.items.map((item) => item.product), excludedStoreIds);
   const byId = new Map(catalog.map((entry) => [entry.product.id, entry]));
   const now = new Date();
   const windowStart = new Date(now.getTime() - 30 * DAY);
