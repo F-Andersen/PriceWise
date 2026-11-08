@@ -13,7 +13,9 @@
     "seed": "tsx prisma/seed.ts",
     "start:prod": "prisma migrate deploy && node dist/src/index.js",
     "monitor:prices:prod": "node dist/src/modules/priceMonitoring/runPriceCollection.js",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "monitor:runs": "tsx src/modules/priceMonitoring/runCollectionLog.ts",
+    "monitor:runs:prod": "node dist/src/modules/priceMonitoring/runCollectionLog.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
