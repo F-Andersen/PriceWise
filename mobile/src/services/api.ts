@@ -47,6 +47,18 @@ export function setAuthToken(token: string | null) {
   authToken = token;
 }
 
+let excludedStores: string[] = [];
+
+/** Магазини, вимкнені користувачем: сервер не враховує їх у цінах і порівнянні. */
+export function setExcludedStores(storeIds: string[]) {
+  excludedStores = storeIds;
+}
+
+function withStores(path: string) {
+  if (!excludedStores.length) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}excludeStores=${encodeURIComponent(excludedStores.join(","))}`;
+}
+
 let onUnauthorized: (() => void) | null = null;
 
 /** Called when the server rejects our token (expired, or signed with another key). */
@@ -80,21 +92,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 export const api = {
   register: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-  products: () => request<Product[]>("/products"),
-  searchProducts: (query: string) => request<Product[]>(`/products/search?query=${encodeURIComponent(query)}`),
-  product: (id: string) => request<Product>(`/products/${id}`),
-  marketPrices: (id: string) => request<MarketPrice[]>(`/products/${id}/market-prices`),
-  alternatives: (id: string) => request<Alternative[]>(`/products/${id}/alternatives`),
-  stores: () => request<Store[]>("/stores"),
-  offers: (storeId?: string) => request<Offer[]>(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`),
+  products: () => request<Product[]>(withStores("/products")),
+  searchProducts: (query: string) => request<Product[]>(withStores(`/products/search?query=${encodeURIComponent(query)}`)),
+  product: (id: string) => request<Product>(withStores(`/products/${id}`)),
+  marketPrices: (id: string) => request<MarketPrice[]>(withStores(`/products/${id}/market-prices`)),
+  alternatives: (id: string) => request<Alternative[]>(withStores(`/products/${id}/alternatives`)),
+  stores: () => request<Store[]>(withStores("/stores")),
+  /** Усі мережі, зокрема вимкнені: для екрана вибору. */
+  allStores: () => request<Store[]>("/stores"),
+  offers: (storeId?: string) => request<Offer[]>(withStores(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`)),
   lists: () => request<ShoppingList[]>("/shopping-lists"),
   createList: (title: string) => request<ShoppingList>("/shopping-lists", { method: "POST", body: JSON.stringify({ title }) }),
-  list: (id: string) => request<ShoppingList>(`/shopping-lists/${id}`),
+  list: (id: string) => request<ShoppingList>(withStores(`/shopping-lists/${id}`)),
   addItem: (listId: string, productId: string, quantity = 1) => request(`/shopping-lists/${listId}/items`, { method: "POST", body: JSON.stringify({ productId, quantity }) }),
   updateItem: (listId: string, itemId: string, quantity: number) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "PUT", body: JSON.stringify({ quantity }) }),
   deleteItem: (listId: string, itemId: string) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "DELETE" }),
-  compare: (listId: string) => request<BasketComparison>(`/shopping-lists/${listId}/compare`),
-  recommendations: (listId: string) => request<Recommendation[]>(`/shopping-lists/${listId}/recommendations`),
+  compare: (listId: string) => request<BasketComparison>(withStores(`/shopping-lists/${listId}/compare`)),
+  recommendations: (listId: string) => request<Recommendation[]>(withStores(`/shopping-lists/${listId}/recommendations`)),
   recipes: () => request<Recipe[]>("/recipes"),
   recipe: (id: string) => request<Recipe>(`/recipes/${id}`),
   addRecipeToList: (recipeId: string, shoppingListId?: string) => request<ShoppingList>(`/recipes/${recipeId}/add-to-shopping-list`, { method: "POST", body: JSON.stringify({ shoppingListId }) })

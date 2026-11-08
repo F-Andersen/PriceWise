@@ -1,5 +1,5 @@
 import { prisma } from "../prisma";
-import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 import {
@@ -15,10 +15,10 @@ import {
 const DAY = 24 * 60 * 60 * 1000;
 
 /** All products with their newest price row per collected store. */
-async function catalogWithLatest() {
+async function catalogWithLatest(excludedStoreIds: string[]) {
   const products = await prisma.product.findMany({
     include: {
-      prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] }
+      prices: { where: { store: selectedStoresWhere(excludedStoreIds) }, include: { store: true }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] }
     }
   });
   return products.map((product) => {
@@ -35,8 +35,8 @@ async function catalogWithLatest() {
 }
 
 /** Cheaper products of the same kind, compared per kg / l / piece. */
-export async function getAlternatives(productId: string) {
-  const catalog = await catalogWithLatest();
+export async function getAlternatives(productId: string, excludedStoreIds: string[] = []) {
+  const catalog = await catalogWithLatest(excludedStoreIds);
   const target = catalog.find((entry) => entry.product.id === productId);
   if (!target) throw new Error("Product not found");
 
@@ -59,12 +59,12 @@ export async function getAlternatives(productId: string) {
  * - below_average: the cheapest current price is at least 5% under its own
  *   time-weighted 30-day average (needs a week of history).
  */
-export async function getShoppingListRecommendations(shoppingListId: string) {
+export async function getShoppingListRecommendations(shoppingListId: string, excludedStoreIds: string[] = []) {
   const list = await prisma.shoppingList.findUnique({ where: { id: shoppingListId }, include: { items: true } });
   if (!list) throw new Error("Shopping list not found");
   if (!list.items.length) return [];
 
-  const catalog = await catalogWithLatest();
+  const catalog = await catalogWithLatest(excludedStoreIds);
   const byId = new Map(catalog.map((entry) => [entry.product.id, entry]));
   const now = new Date();
   const windowStart = new Date(now.getTime() - 30 * DAY);
