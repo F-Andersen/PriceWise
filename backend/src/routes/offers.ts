@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../prisma";
+import { parseExcludedStores } from "../utils/storeFilter";
 import { zakazStores } from "../modules/priceMonitoring/zakazStores";
 import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
@@ -12,7 +13,7 @@ const router = Router();
  * filtering by "has a discount" first would resurrect a promotion that ended,
  * because its old discounted row would still be the newest discounted one.
  */
-async function latestPriceIds(storeId?: string) {
+async function latestPriceIds(storeId: string | undefined, excludedIds: string[]) {
   const storeNames = zakazStores.map((store) => store.name);
   const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
     SELECT DISTINCT ON (p."productId", p."storeId") p.id
@@ -20,6 +21,7 @@ async function latestPriceIds(storeId?: string) {
     JOIN "Store" s ON s.id = p."storeId"
     WHERE s.name IN (${Prisma.join(storeNames)})
       ${storeId ? Prisma.sql`AND p."storeId" = ${storeId}` : Prisma.empty}
+      ${excludedIds.length ? Prisma.sql`AND p."storeId" NOT IN (${Prisma.join(excludedIds)})` : Prisma.empty}
     ORDER BY p."productId", p."storeId", p."dateCollected" DESC, p.id DESC
   `);
   return rows.map((row) => row.id);
@@ -30,7 +32,7 @@ router.get("/", async (req, res) => {
   const now = new Date();
 
   const latest = await prisma.price.findMany({
-    where: { id: { in: await latestPriceIds(storeId) }, isAvailable: true, discountPrice: { not: null } },
+    where: { id: { in: await latestPriceIds(storeId, parseExcludedStores(req.query.excludeStores)) }, isAvailable: true, discountPrice: { not: null } },
     include: { product: true, store: true }
   });
 

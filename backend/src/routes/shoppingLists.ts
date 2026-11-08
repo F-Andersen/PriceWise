@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../prisma";
-import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { parseExcludedStores } from "../utils/storeFilter";
+import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { compareShoppingList } from "../services/comparisonService";
 import { getShoppingListRecommendations } from "../services/recommendationService";
 
@@ -27,7 +28,7 @@ router.post("/", async (req: AuthRequest, res) => {
 router.get("/:id", async (req: AuthRequest, res) => {
   const list = await prisma.shoppingList.findFirst({
     where: { id: req.params.id, userId: req.userId },
-    include: { items: { include: { product: { include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
+    include: { items: { include: { product: { include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
   });
   if (!list) return res.status(404).json({ message: "Shopping list not found" });
   res.json(list);
@@ -62,12 +63,12 @@ router.delete("/:id/items/:itemId", async (req: AuthRequest, res) => {
 
 router.get("/:id/compare", async (req: AuthRequest, res) => {
   await assertOwnsList(req.params.id, req.userId!);
-  res.json(await compareShoppingList(req.params.id));
+  res.json(await compareShoppingList(req.params.id, parseExcludedStores(req.query.excludeStores)));
 });
 
 router.get("/:id/recommendations", async (req: AuthRequest, res) => {
   await assertOwnsList(req.params.id, req.userId!);
-  res.json(await getShoppingListRecommendations(req.params.id));
+  res.json(await getShoppingListRecommendations(req.params.id, parseExcludedStores(req.query.excludeStores)));
 });
 
 /** The item must belong to this (already owned) list, not to someone else's. */
