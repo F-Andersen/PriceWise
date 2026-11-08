@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 import {
   MIN_SAVING_PERCENT,
@@ -91,7 +92,7 @@ export async function getShoppingListRecommendations(shoppingListId: string) {
     }
 
     const discounts = entry.withLatest.latest
-      .filter((row) => row.isAvailable && hasActiveDiscount(row, now) && row.oldPrice)
+      .filter((row) => row.isAvailable && isPriceFresh(row.lastSeenAt, now) && hasActiveDiscount(row, now) && row.oldPrice)
       .map((row) => {
         const price = activePrice(row, now);
         const oldPrice = toNumber(row.oldPrice);

@@ -4,6 +4,7 @@ import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
 import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { getAlternatives } from "../services/recommendationService";
+import { isPriceFresh } from "../utils/freshness";
 import { activePrice, toNumber } from "../utils/money";
 
 const router = Router();
@@ -130,7 +131,9 @@ router.get("/:id/market-prices", async (req, res) => {
     const score = similarityScore(product, candidate);
     if (score < 0) continue;
 
-    for (const price of latestStorePrices(candidate.prices).filter((item) => item.isAvailable)) {
+    // An unconfirmed price of this very product stays visible (the app labels it);
+    // a similar product is only worth showing with a confirmed price.
+    for (const price of latestStorePrices(candidate.prices).filter((item) => item.isAvailable && (candidate.id === product.id || isPriceFresh(item.lastSeenAt)))) {
       const matchType = candidate.id === product.id ? "exact" : "similar";
       const previous = bestByStore.get(price.storeId);
       const currentActivePrice = activePrice(price);
@@ -155,7 +158,9 @@ router.get("/:id/market-prices", async (req, res) => {
       price: toNumber(price.price),
       oldPrice: price.oldPrice ? toNumber(price.oldPrice) : null,
       discountPrice: price.discountPrice ? toNumber(price.discountPrice) : null,
+      promoEndsAt: price.promoEndsAt,
       dateCollected: price.dateCollected,
+      lastSeenAt: price.lastSeenAt,
       isAvailable: price.isAvailable,
       imageUrl: price.imageUrl,
       sourceUrl: price.sourceUrl,

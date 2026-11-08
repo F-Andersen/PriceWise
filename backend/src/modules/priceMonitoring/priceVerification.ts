@@ -20,6 +20,19 @@ export function isSharpChange(previous: number, next: number, ratio = SHARP_CHAN
   return previous > 0 && Math.abs(next - previous) / previous > ratio;
 }
 
+/** Above this share of a store's known products, disappearing at once looks like a failure. */
+export const MASS_GONE_SHARE = 0.3;
+export const MASS_GONE_MIN_COUNT = 5;
+
+/**
+ * True when so many previously available products vanished from one store in a
+ * single run that a site failure is likelier than real delistings. A few products
+ * going away is normal; 40% of a store is not.
+ */
+export function looksLikeMassFailure(goneCount: number, knownCount: number) {
+  return goneCount >= MASS_GONE_MIN_COUNT && knownCount > 0 && goneCount / knownCount > MASS_GONE_SHARE;
+}
+
 const samePrice = (a: number, b: number) => Math.abs(a - b) < 0.005;
 
 /**

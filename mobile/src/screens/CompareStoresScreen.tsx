@@ -5,8 +5,8 @@ import { Icon } from "../components/Icon";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
-import { BasketComparison, BasketVerdict, ComparisonResult, Recommendation } from "../types";
-import { countLabel, formatDate, formatPrice, isStale, promoUntilLabel } from "../utils/prices";
+import { BasketComparison, BasketVerdict, ComparisonResult, MissingItem, Recommendation } from "../types";
+import { countLabel, formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function Coverage({ found, total }: { found: number; total: number }) {
@@ -19,6 +19,12 @@ function Coverage({ found, total }: { found: number; total: number }) {
       <Text style={[type.label, { color: complete ? colors.primaryDark : colors.caution }]}>{found} із {total} товарів</Text>
     </View>
   );
+}
+
+function missingLabel(line: MissingItem) {
+  if (line.reason === "unavailable") return "немає в наявності";
+  if (line.reason === "stale") return line.checkedAt ? `не підтверджено з ${formatDate(line.checkedAt)}` : "не підтверджено";
+  return "немає ціни в базі";
 }
 
 function ItemLines({ result }: { result: ComparisonResult }) {
@@ -35,16 +41,11 @@ function ItemLines({ result }: { result: ComparisonResult }) {
       {result.missing.map((line) => (
         <View key={line.productId} style={styles.line}>
           <Text style={[type.small, styles.lineName, styles.missing]} numberOfLines={2}>{line.productName}</Text>
-          <Text style={styles.missingValue}>{line.reason === "unavailable" ? "немає в наявності" : "немає ціни в базі"}</Text>
+          <Text style={styles.missingValue}>{missingLabel(line)}</Text>
         </View>
       ))}
     </View>
   );
-}
-
-function StaleNote({ checkedAt }: { checkedAt: string | null }) {
-  if (!checkedAt || !isStale(checkedAt)) return null;
-  return <Text style={styles.stale}>Найстаріша ціна в цьому кошику перевірялась {formatDate(checkedAt)}. Вона могла змінитися.</Text>;
 }
 
 function CompleteCard({ result, total }: { result: ComparisonResult; total: number }) {
@@ -57,7 +58,6 @@ function CompleteCard({ result, total }: { result: ComparisonResult; total: numb
       </View>
       <Text style={type.priceLarge}>{formatPrice(result.totalPrice)}</Text>
       <Coverage found={result.foundCount} total={total} />
-      <StaleNote checkedAt={result.checkedAt} />
       <ItemLines result={result} />
     </Card>
   );
@@ -65,6 +65,8 @@ function CompleteCard({ result, total }: { result: ComparisonResult; total: numb
 
 function PartialCard({ result, total }: { result: ComparisonResult; total: number }) {
   const [open, setOpen] = useState(false);
+  const unconfirmed = result.missing.filter((line) => line.reason === "stale");
+  const absent = result.missing.filter((line) => line.reason !== "stale");
   return (
     <Card style={styles.card}>
       <View style={styles.cardTop}>
@@ -75,10 +77,14 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
       {result.foundCount > 0 ? (
         <Text style={styles.partialSum}>Сума за {countLabel(result.foundCount, "знайдений товар", "знайдені товари", "знайдених товарів")}: {formatPrice(result.totalPrice)}. Не порівнюйте її з повним кошиком.</Text>
       ) : (
-        <Text style={styles.partialSum}>Товари з кошика зараз відсутні в цьому магазині.</Text>
+        <Text style={styles.partialSum}>{result.missing.some((line) => line.reason === "stale") ? "Ціни цього магазину давно не підтверджувалися, тому не враховані." : "Для цього магазину зараз немає доступних цін на товари з кошика."}</Text>
       )}
-      <StaleNote checkedAt={result.checkedAt} />
-      {!open ? <Text style={styles.missingSummary}>Немає: {result.missingProducts.join(", ")}</Text> : <ItemLines result={result} />}
+      {!open ? (
+        <>
+          {absent.length ? <Text style={styles.missingSummary}>Немає: {absent.map((line) => line.productName).join(", ")}</Text> : null}
+          {unconfirmed.length ? <Text style={styles.missingSummary}>Не підтверджено: {unconfirmed.map((line) => line.productName).join(", ")}</Text> : null}
+        </>
+      ) : <ItemLines result={result} />}
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={styles.toggle}>
         <Text style={styles.toggleText}>{open ? "Сховати деталі" : "Показати деталі"}</Text>
         <Icon name={open ? "chevronUp" : "chevronDown"} size={16} color={colors.primary} />
@@ -87,7 +93,7 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
   );
 }
 
-function Verdict({ verdict, storeName }: { verdict: BasketVerdict; storeName: (id: string) => string }) {
+function Verdict({ verdict, storeName, hasStale }: { verdict: BasketVerdict; storeName: (id: string) => string; hasStale: boolean }) {
   if (verdict.kind === "cheapest") {
     const names = verdict.storeIds.map(storeName).join(", ");
     return (
@@ -112,7 +118,7 @@ function Verdict({ verdict, storeName }: { verdict: BasketVerdict; storeName: (i
   return (
     <Card style={[styles.verdict, styles.verdictCaution]}>
       <Text style={[type.label, { color: colors.caution }]}>Порівняння неповне</Text>
-      <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>Жоден магазин не має всіх товарів</Text>
+      <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>{hasStale ? "Немає магазину, де всі ціни підтверджені" : "Жоден магазин не має всіх товарів"}</Text>
       <Text style={type.body}>Не можна сказати, де кошик дешевший. Нижче видно, чого бракує в кожному магазині.</Text>
     </Card>
   );
@@ -158,8 +164,13 @@ export function CompareStoresScreen() {
 
         {status === "ready" && itemCount > 0 ? (
           <>
-            {comparison ? <Verdict verdict={comparison.verdict} storeName={storeName} /> : null}
+            {comparison ? <Verdict verdict={comparison.verdict} storeName={storeName} hasStale={comparison.staleCount > 0} /> : null}
             <View style={styles.freshness}><FreshnessNotice collectedAt={collectedAt} /></View>
+            {comparison && comparison.staleCount > 0 ? (
+              <View style={styles.freshness}>
+                <Notice icon="alert" title="Частину цін не підтверджено" text="Збір не бачив їх понад 3 доби, тому вони не враховані в сумах і порівнянні." />
+              </View>
+            ) : null}
 
             {complete.length ? (
               <>
@@ -233,7 +244,6 @@ const styles = StyleSheet.create({
   missingValue: { ...type.small, color: colors.caution, fontWeight: "600" },
   missingSummary: { ...type.small, color: colors.caution },
   partialSum: { ...type.small, color: colors.textSoft },
-  stale: { ...type.small, color: colors.caution },
   toggle: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.minTouch, alignSelf: "flex-start" },
   toggleText: { ...type.small, color: colors.primary, fontWeight: "600" },
   tip: { gap: spacing.xs, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },

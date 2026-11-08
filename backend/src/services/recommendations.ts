@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney } from "../utils/money";
 import { productKind, unitPrice, type Quantity } from "./productKind";
 
@@ -24,6 +25,7 @@ export type LatestPrice = {
   discountPrice: Prisma.Decimal | null;
   promoEndsAt: Date | null;
   isAvailable: boolean;
+  lastSeenAt: Date;
 };
 
 export type ProductWithLatest = {
@@ -47,7 +49,7 @@ export type BestOffer = {
 export function bestOffer(product: ProductWithLatest, now = new Date()): BestOffer | null {
   let best: BestOffer | null = null;
   for (const row of product.latest) {
-    if (!row.isAvailable) continue;
+    if (!row.isAvailable || !isPriceFresh(row.lastSeenAt, now)) continue;
     const packPrice = roundMoney(activePrice(row, now));
     const perUnit = unitPrice(packPrice, product.volume);
     if (!perUnit) continue;
