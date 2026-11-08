@@ -3,6 +3,7 @@ import { prisma } from "../../prisma";
 import { roundMoney, toNumber } from "../../utils/money";
 import { classifyBarcode } from "./gtin";
 import { recordPriceObservation } from "./priceHistory";
+import { isSharpChange, recheckDelayMs, verifySharpChanges, type PendingCheck } from "./priceVerification";
 import { BOT_HEADERS, REQUEST_DELAY_MS, ensureZakazStores, sleep, type ZakazStoreConfig } from "./zakazStores";
 
 /** Product fields we read from the page's embedded Next.js state. */
@@ -14,6 +15,13 @@ export type ZakazProduct = {
   in_stock?: boolean;
   web_url?: string;
   img?: Record<string, string> | null;
+  // Not used for prices; logged as evidence when a price changes sharply.
+  price_wholesale?: unknown;
+  quantity?: unknown;
+  bundle?: unknown;
+  unit?: unknown;
+  weight?: unknown;
+  take_more?: unknown;
 };
 
 type FetchOutcome =
@@ -24,7 +32,7 @@ type FetchOutcome =
 export type CatalogSyncRow = {
   product: string;
   store: string;
-  status: "created" | "marked_unavailable" | "not_found" | "skipped" | "error";
+  status: "created" | "marked_unavailable" | "not_found" | "skipped" | "error" | "unconfirmed";
   price?: number;
   oldPrice?: number | null;
   inStock?: boolean;
@@ -91,10 +99,25 @@ export function pricesFrom(product: ZakazProduct) {
   return { price, oldPrice, discountPrice: oldPrice ? price : null, promoEndsAt: oldPrice ? promoEnd(product.discount?.due_date) : null };
 }
 
+/** The price a shopper would see, as the store page states it. */
+const shelfPrice = (product: ZakazProduct) => {
+  const { price, discountPrice } = pricesFrom(product);
+  return discountPrice ?? price;
+};
+
+/** Raw fields that help explain a sharp change later (promotion, wholesale tiers, pack). */
+function priceEvidence(product: ZakazProduct) {
+  const { price, discount, price_wholesale, quantity, bundle, unit, weight, take_more, in_stock } = product;
+  return { price, discount, price_wholesale, quantity, bundle, unit, weight, take_more, in_stock };
+}
+
+type FoundOutcome = Extract<FetchOutcome, { status: "found" }>;
+type RecheckItem = { product: Product; store: Store; expected: string | null; outcome: FoundOutcome; firstEvidence: unknown };
+
 async function recordFound(
   product: Product,
   store: Store,
-  found: Extract<FetchOutcome, { status: "found" }>,
+  found: FoundOutcome,
   collectedAt: Date,
   dryRun: boolean
 ): Promise<CatalogSyncRow> {
@@ -182,6 +205,7 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
   });
 
   const rows: CatalogSyncRow[] = [];
+  const pendingChecks: PendingCheck<RecheckItem>[] = [];
   let firstRequest = true;
   const politeFetch = async (url: string, gtin14: string | null) => {
     if (!firstRequest) await sleep(REQUEST_DELAY_MS);
@@ -220,7 +244,21 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
         outcome = await politeFetch(knownSource.sourceUrl, expected);
       }
       if (outcome.status === "found") {
-        rows.push(await recordFound(product, store, outcome, collectedAt, dryRun));
+        const previous = dryRun
+          ? null
+          : await prisma.price.findFirst({ where: { productId: product.id, storeId: store.id }, orderBy: [{ dateCollected: "desc" }, { id: "desc" }] });
+        const previousPrice = previous?.isAvailable ? toNumber(previous.discountPrice ?? previous.price) : null;
+        const first = shelfPrice(outcome.product);
+        if (previousPrice !== null && isSharpChange(previousPrice, first)) {
+          // Not recorded yet: the page is read again after the main pass.
+          pendingChecks.push({
+            previous: previousPrice,
+            first,
+            item: { product, store, expected, outcome, firstEvidence: priceEvidence(outcome.product) }
+          });
+        } else {
+          rows.push(await recordFound(product, store, outcome, collectedAt, dryRun));
+        }
       } else if (outcome.status === "not_found") {
         rows.push(knownSource ? await recordGone(product, store, collectedAt, outcome.reason, dryRun) : { product: product.name, store: store.name, status: "not_found", reason: outcome.reason });
       } else {
@@ -228,6 +266,39 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
       }
     }
   }
+
+  rows.push(
+    ...(await verifySharpChanges<RecheckItem, CatalogSyncRow>(pendingChecks, recheckDelayMs(), {
+      wait: sleep,
+      readAgain: async (item) => {
+        const again = await politeFetch(item.outcome.url, item.expected);
+        if (again.status !== "found") return null;
+        item.outcome = again; // the freshest reading is the one that gets recorded
+        return { price: shelfPrice(again.product), evidence: priceEvidence(again.product) };
+      },
+      accept: (item) => recordFound(item.product, item.store, item.outcome, collectedAt, dryRun),
+      reject: (item, second) => ({
+        product: item.product.name,
+        store: item.store.name,
+        status: "unconfirmed",
+        reason: `Sharp price change not confirmed by a second reading (${second ?? "no reading"}); previous price kept`
+      }),
+      log: ({ item, previous, first, second, decision, evidence }) =>
+        console.warn(
+          `[prices] sharp change ${JSON.stringify({
+            decision,
+            store: item.store.name,
+            product: item.product.name,
+            url: item.outcome.url,
+            previous,
+            first,
+            second,
+            firstReading: item.firstEvidence,
+            secondReading: evidence
+          })}`
+        )
+    }))
+  );
 
   return { collectedAt, rows, summary: summarize(rows, stores.map(({ config }) => config)) };
 }
@@ -243,6 +314,7 @@ function summarize(rows: CatalogSyncRow[], stores: readonly ZakazStoreConfig[]) 
       onSale: storeRows.filter((row) => row.status === "created" && row.oldPrice).length,
       notFound: count("not_found"),
       markedUnavailable: count("marked_unavailable"),
+      unconfirmed: count("unconfirmed"),
       skipped: count("skipped"),
       errors: count("error")
     };
