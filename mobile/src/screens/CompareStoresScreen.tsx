@@ -65,6 +65,8 @@ function CompleteCard({ result, total }: { result: ComparisonResult; total: numb
 
 function PartialCard({ result, total }: { result: ComparisonResult; total: number }) {
   const [open, setOpen] = useState(false);
+  const unconfirmed = result.missing.filter((line) => line.reason === "stale");
+  const absent = result.missing.filter((line) => line.reason !== "stale");
   return (
     <Card style={styles.card}>
       <View style={styles.cardTop}>
@@ -75,9 +77,14 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
       {result.foundCount > 0 ? (
         <Text style={styles.partialSum}>Сума за {countLabel(result.foundCount, "знайдений товар", "знайдені товари", "знайдених товарів")}: {formatPrice(result.totalPrice)}. Не порівнюйте її з повним кошиком.</Text>
       ) : (
-        <Text style={styles.partialSum}>{result.missing.some((line) => line.reason === "stale") ? "Ціни цього магазину давно не підтверджувалися, тому не враховані." : "Товари з кошика зараз відсутні в цьому магазині."}</Text>
+        <Text style={styles.partialSum}>{result.missing.some((line) => line.reason === "stale") ? "Ціни цього магазину давно не підтверджувалися, тому не враховані." : "Для цього магазину зараз немає доступних цін на товари з кошика."}</Text>
       )}
-      {!open ? <Text style={styles.missingSummary}>Немає: {result.missingProducts.join(", ")}</Text> : <ItemLines result={result} />}
+      {!open ? (
+        <>
+          {absent.length ? <Text style={styles.missingSummary}>Немає: {absent.map((line) => line.productName).join(", ")}</Text> : null}
+          {unconfirmed.length ? <Text style={styles.missingSummary}>Не підтверджено: {unconfirmed.map((line) => line.productName).join(", ")}</Text> : null}
+        </>
+      ) : <ItemLines result={result} />}
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={styles.toggle}>
         <Text style={styles.toggleText}>{open ? "Сховати деталі" : "Показати деталі"}</Text>
         <Icon name={open ? "chevronUp" : "chevronDown"} size={16} color={colors.primary} />
