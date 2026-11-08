@@ -15,6 +15,7 @@ const row = (storeName: string, value: number, extra: Partial<LatestPrice> = {})
   discountPrice: null,
   promoEndsAt: null,
   isAvailable: true,
+  lastSeenAt: new Date("2026-11-07T06:00:00Z"),
   ...extra
 });
 const product = (id: string, name: string, volume: string, latest: LatestPrice[]): ProductWithLatest => ({ id, name, volume, latest });
@@ -68,6 +69,19 @@ describe("bestOffer", () => {
     );
     assert.equal(offer?.store.name, "A");
     assert.equal(offer?.unitPrice, 500);
+  });
+});
+
+describe("bestOffer with expired prices", () => {
+  it("skips a price that is no longer confirmed", () => {
+    const offer = bestOffer(
+      product("p", "Масло X солодковершкове", "200 г", [row("old", 10, { lastSeenAt: new Date("2026-11-01T06:00:00Z") }), row("fresh", 100)]),
+      now
+    );
+    assert.equal(offer?.store.name, "fresh");
+  });
+  it("returns nothing when every price is expired", () => {
+    assert.equal(bestOffer(product("p", "Масло X", "200 г", [row("old", 10, { lastSeenAt: new Date("2026-11-01T06:00:00Z") })]), now), null);
   });
 });
 

@@ -139,10 +139,47 @@ describe("compareBaskets", () => {
       stores: [store("x")],
       latestPrices: [
         price("a", "x", 1, { lastSeenAt: new Date("2026-11-07T06:00:00Z") }),
-        price("b", "x", 1, { lastSeenAt: new Date("2026-11-01T06:00:00Z") })
+        price("b", "x", 1, { lastSeenAt: new Date("2026-11-05T06:00:00Z") })
       ]
     });
-    assert.equal(result.stores[0].checkedAt?.toISOString(), "2026-11-01T06:00:00.000Z");
+    assert.equal(result.stores[0].checkedAt?.toISOString(), "2026-11-05T06:00:00.000Z");
+  });
+
+  it("never lets an expired price win, however cheap it is", () => {
+    const old = new Date("2026-11-01T06:00:00Z");
+    const result = compareBaskets({
+      now,
+      items: [item("a")],
+      stores: [store("expired"), store("x"), store("y")],
+      latestPrices: [price("a", "expired", 1, { lastSeenAt: old }), price("a", "x", 10), price("a", "y", 12)]
+    });
+    assert.deepEqual(result.verdict, { kind: "cheapest", storeIds: ["x"], total: 10, spread: 2, completeCount: 2 });
+    assert.equal(result.staleCount, 1);
+    const expired = result.stores.find((basket) => basket.store.name === "expired")!;
+    assert.equal(expired.status, "partial");
+    assert.equal(expired.foundCount, 0);
+    assert.equal(expired.isBest, false);
+    assert.deepEqual(expired.missing.map((line) => [line.reason, line.checkedAt]), [["stale", old]]);
+  });
+
+  it("treats an old 'out of stock' as unconfirmed, not as a fact", () => {
+    const result = compareBaskets({
+      now,
+      items: [item("a")],
+      stores: [store("x")],
+      latestPrices: [price("a", "x", 10, { isAvailable: false, lastSeenAt: new Date("2026-11-01T06:00:00Z") })]
+    });
+    assert.equal(result.stores[0].missing[0].reason, "stale");
+  });
+
+  it("accepts a price exactly at the age limit and rejects an older one", () => {
+    const limit = 72 * 60 * 60 * 1000;
+    const atLimit = new Date(now.getTime() - limit);
+    const tooOld = new Date(now.getTime() - limit - 1);
+    const fresh = compareBaskets({ now, maxAgeMs: limit, items: [item("a")], stores: [store("x")], latestPrices: [price("a", "x", 10, { lastSeenAt: atLimit })] });
+    const stale = compareBaskets({ now, maxAgeMs: limit, items: [item("a")], stores: [store("x")], latestPrices: [price("a", "x", 10, { lastSeenAt: tooOld })] });
+    assert.equal(fresh.stores[0].status, "complete");
+    assert.equal(stale.stores[0].status, "partial");
   });
 
   it("handles an empty basket", () => {

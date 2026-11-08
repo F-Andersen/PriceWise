@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { Price, Store } from "../types";
-import { activePrice, checkedAt, hasActiveDiscount, latestByStore, promoUntilLabel, regularPrice } from "./prices";
+import type { Price, Product, Store } from "../types";
+import { activePrice, checkedAt, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
 
 const store = (id: string) => ({ id, name: id, city: "Київ" }) as Store;
 const DAY = 24 * 60 * 60 * 1000;
@@ -52,6 +52,32 @@ describe("checkedAt", () => {
   it("shows when the price was last confirmed, not when it first appeared", () => {
     assert.equal(checkedAt({ dateCollected: "2026-11-01T06:00:00Z", lastSeenAt: "2026-11-07T06:00:00Z" }), "2026-11-07T06:00:00Z");
     assert.equal(checkedAt({ dateCollected: "2026-11-01T06:00:00Z" }), "2026-11-01T06:00:00Z");
+  });
+});
+
+describe("price freshness", () => {
+  const HOUR = 60 * 60 * 1000;
+  const ago = (hours: number) => new Date(Date.now() - hours * HOUR).toISOString();
+
+  it("is stale only after 72 hours", () => {
+    const now = new Date("2026-11-09T12:00:00Z");
+    assert.equal(isStale(new Date(now.getTime() - 72 * HOUR), now), false);
+    assert.equal(isStale(new Date(now.getTime() - 72 * HOUR - 1), now), true);
+  });
+  it("confirms a price by its last check, not by when it first appeared", () => {
+    assert.equal(isConfirmedPrice(price({ dateCollected: ago(500), lastSeenAt: ago(1) })), true);
+    assert.equal(isConfirmedPrice(price({ dateCollected: ago(500), lastSeenAt: ago(100) })), false);
+    assert.equal(isConfirmedPrice(price({ lastSeenAt: ago(1), isAvailable: false })), false);
+  });
+  it("leaves unconfirmed prices out of the lowest price and store count", () => {
+    const product = {
+      prices: [
+        price({ storeId: "old", price: 1, dateCollected: ago(200), lastSeenAt: ago(100) }),
+        price({ storeId: "fresh", price: 50, dateCollected: ago(2), lastSeenAt: ago(1) })
+      ]
+    } as unknown as Product;
+    assert.equal(minProductPrice(product), 50);
+    assert.equal(storeCount(product), 1);
   });
 });
 

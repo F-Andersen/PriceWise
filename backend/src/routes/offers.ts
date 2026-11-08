@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../prisma";
 import { zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 
 const router = Router();
@@ -34,7 +35,7 @@ router.get("/", async (req, res) => {
   });
 
   const offers = latest
-    .filter((price) => hasActiveDiscount(price, now))
+    .filter((price) => hasActiveDiscount(price, now) && isPriceFresh(price.lastSeenAt, now))
     .map((price) => {
       const currentPrice = activePrice(price, now);
       const oldPrice = toNumber(price.oldPrice ?? price.price);

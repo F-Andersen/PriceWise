@@ -43,13 +43,13 @@ export function latestByStore(prices: Price[] = []) {
 }
 
 export function minProductPrice(product: Product) {
-  const available = latestByStore(product.prices).filter((price) => price.isAvailable);
+  const available = latestByStore(product.prices).filter(isConfirmedPrice);
   if (!available.length) return null;
   return Math.min(...available.map(activePrice));
 }
 
 export function cheapestAvailablePrice(product: Product) {
-  const available = latestByStore(product.prices).filter((price) => price.isAvailable);
+  const available = latestByStore(product.prices).filter(isConfirmedPrice);
   if (!available.length) return null;
   return available.reduce((best, price) => (activePrice(price) < activePrice(best) ? price : best));
 }
@@ -60,13 +60,13 @@ export function productImageForBestPrice(product: Product) {
 }
 
 export function averageLatestPrice(product: Product) {
-  const prices = latestByStore(product.prices).filter((price) => price.isAvailable);
+  const prices = latestByStore(product.prices).filter(isConfirmedPrice);
   if (!prices.length) return 0;
   return Math.round((prices.reduce((sum, price) => sum + activePrice(price), 0) / prices.length) * 100) / 100;
 }
 
 export function storeCount(product: Product) {
-  return latestByStore(product.prices).filter((price) => price.isAvailable).length;
+  return latestByStore(product.prices).filter(isConfirmedPrice).length;
 }
 
 /** Точні збіги окремо від схожих товарів: схожі не беруть участі в мінімумі й середній ціні. */
@@ -96,11 +96,16 @@ export function daysSince(value: string | Date, now = new Date()) {
   return Math.max(0, Math.floor((+now - +new Date(value)) / 86400000));
 }
 
-/** Ціни, зібрані раніше за цей поріг, показуються як застарілі. */
-export const STALE_AFTER_DAYS = 7;
+/** Той самий поріг, що й PRICE_MAX_AGE_HOURS на сервері: старіша ціна вважається непідтвердженою. */
+export const MAX_PRICE_AGE_HOURS = 72;
 
-export function isStale(value: string | Date) {
-  return daysSince(value) > STALE_AFTER_DAYS;
+export function isStale(value: string | Date, now = new Date()) {
+  return +now - +new Date(value) > MAX_PRICE_AGE_HOURS * 60 * 60 * 1000;
+}
+
+/** Ціна є в наявності й нещодавно підтверджена збором: лише така бере участь у розрахунках. */
+export function isConfirmedPrice(price: Price) {
+  return price.isAvailable && !isStale(checkedAt(price));
 }
 
 export function plural(count: number, one: string, few: string, many: string) {

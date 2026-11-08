@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { decideRecheck, isSharpChange, recheckDelayMs, verifySharpChanges, type RecheckDeps } from "./priceVerification";
+import { decideRecheck, isSharpChange, looksLikeMassFailure, recheckDelayMs, verifySharpChanges, type RecheckDeps } from "./priceVerification";
 
 describe("isSharpChange", () => {
   it("flags changes above 15% in either direction", () => {
@@ -13,6 +13,20 @@ describe("isSharpChange", () => {
   });
   it("has nothing to compare with a zero previous price", () => {
     assert.equal(isSharpChange(0, 50), false);
+  });
+});
+
+describe("looksLikeMassFailure", () => {
+  it("treats a large share of a store vanishing at once as a failure", () => {
+    assert.equal(looksLikeMassFailure(10, 20), true);
+    assert.equal(looksLikeMassFailure(5, 16), true);
+  });
+  it("accepts a few real delistings", () => {
+    assert.equal(looksLikeMassFailure(4, 5), false, "too few to suspect a failure");
+    assert.equal(looksLikeMassFailure(5, 20), false, "only 25% of the store");
+  });
+  it("is safe with no known products", () => {
+    assert.equal(looksLikeMassFailure(0, 0), false);
   });
 });
 
