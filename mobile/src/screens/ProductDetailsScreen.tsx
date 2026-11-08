@@ -10,12 +10,13 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
-import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
+import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
 
 function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
-  const unavailable = !price.isAvailable;
-  const hasDiscount = !unavailable && hasActiveDiscount(price);
+  const unconfirmed = isStale(checkedAt(price));
+  const unavailable = !price.isAvailable && !unconfirmed;
+  const hasDiscount = !unavailable && !unconfirmed && hasActiveDiscount(price);
   return (
     <View style={[styles.priceRow, showDivider && styles.divider]}>
       <View style={styles.priceRowMain}>
@@ -30,9 +31,10 @@ function PriceRow({ price, showDivider, isLowest, productName }: { price: Price 
         ) : null}
       </View>
       <View style={styles.priceRowSide}>
-        <Text style={[type.price, unavailable && styles.unavailable]}>{formatPrice(activePrice(price))}</Text>
+        <Text style={[type.price, (unavailable || unconfirmed) && styles.unavailable]}>{formatPrice(activePrice(price))}</Text>
         {hasDiscount ? <Text style={styles.oldPrice}>{formatPrice(regularPrice(price))}</Text> : null}
         <View style={styles.badges}>
+          {unconfirmed ? <Badge label="Не підтверджено" tone="caution" /> : null}
           {unavailable ? <Badge label="Немає в наявності" tone="caution" /> : null}
           {isLowest ? <Badge label="Найнижча" tone="primary" /> : null}
           {hasDiscount ? <Badge label={price.promoEndsAt ? `Акція ${promoUntilLabel(price.promoEndsAt)}` : "Акція"} tone="deal" /> : null}
@@ -74,7 +76,7 @@ export function ProductDetailsScreen() {
 
   const latest = marketPrices.length ? marketPrices : latestByStore(product.prices);
   const { exact, similar } = splitMarketPrices(latest);
-  const available = exact.filter((price) => price.isAvailable);
+  const available = exact.filter(isConfirmedPrice);
   const values = available.map(activePrice);
   const lowest = values.length ? Math.min(...values) : null;
   const average = values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 100) / 100 : null;
@@ -126,7 +128,7 @@ export function ProductDetailsScreen() {
         {exact.length ? (
           <Card style={styles.listCard}>
             {exact.map((price, index) => (
-              <PriceRow key={price.id} price={price} showDivider={index > 0} isLowest={available.length > 1 && price.isAvailable && activePrice(price) === lowest} />
+              <PriceRow key={price.id} price={price} showDivider={index > 0} isLowest={available.length > 1 && isConfirmedPrice(price) && activePrice(price) === lowest} />
             ))}
           </Card>
         ) : (

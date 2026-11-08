@@ -68,8 +68,9 @@ export type MissingItem = {
   productId: string;
   productName: string;
   quantity: number;
-  /** unavailable — магазин позначив «немає в наявності»; no_price — у базі немає ціни. */
-  reason: "unavailable" | "no_price";
+  /** unavailable — магазин позначив «немає в наявності»; no_price — у базі немає ціни; stale — ціну давно не підтверджено. */
+  reason: "unavailable" | "no_price" | "stale";
+  checkedAt?: string;
 };
 
 export type ComparisonResult = {
@@ -100,6 +101,8 @@ export type BasketComparison = {
   itemCount: number;
   verdict: BasketVerdict;
   stores: ComparisonResult[];
+  /** Скільки пар «магазин — товар» не враховано, бо ціну давно не підтверджено. */
+  staleCount: number;
 };
 
 export type Recommendation = {
