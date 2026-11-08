@@ -7,7 +7,6 @@
 export const MAX_LOGGED_ISSUES = 200;
 
 type Row = { product: string; store: string; status: string; reason?: string };
-type PromotionResult = { store: string; status: string; reason?: string; url?: string };
 
 export type RunSummary = {
   status: "success" | "partial";
@@ -17,13 +16,10 @@ export type RunSummary = {
   issues: Array<{ store: string; product?: string; status: string; reason?: string }>;
 };
 
-export function summarizeRun(rows: Row[], promotions: PromotionResult[]): RunSummary {
-  const issues = [
-    ...promotions.filter((item) => item.status === "failed").map((item) => ({ store: item.store, status: "promotions_failed", reason: item.reason })),
-    ...rows
-      .filter((row) => row.status === "error" || row.status === "unconfirmed")
-      .map((row) => ({ store: row.store, product: row.product, status: row.status, reason: row.reason }))
-  ];
+export function summarizeRun(rows: Row[]): RunSummary {
+  const issues = rows
+    .filter((row) => row.status === "error" || row.status === "unconfirmed")
+    .map((row) => ({ store: row.store, product: row.product, status: row.status, reason: row.reason }));
   return {
     status: issues.length ? "partial" : "success",
     productsChecked: new Set(rows.map((row) => row.product)).size,
