@@ -5,6 +5,7 @@ import { Icon } from "../components/Icon";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
+import { useStores } from "../services/StoresContext";
 import { BasketComparison, BasketVerdict, ComparisonResult, MissingItem, Recommendation } from "../types";
 import { countLabel, formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
 import { colors, layout, radii, spacing, type } from "../utils/theme";
@@ -126,6 +127,7 @@ function Verdict({ verdict, storeName, hasStale }: { verdict: BasketVerdict; sto
 
 export function CompareStoresScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "CompareStores">>();
+  const { excludedStoreIds } = useStores();
   const [comparison, setComparison] = useState<BasketComparison | null>(null);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -166,6 +168,11 @@ export function CompareStoresScreen() {
           <>
             {comparison ? <Verdict verdict={comparison.verdict} storeName={storeName} hasStale={comparison.staleCount > 0} /> : null}
             <View style={styles.freshness}><FreshnessNotice collectedAt={collectedAt} /></View>
+            {excludedStoreIds.length ? (
+              <View style={styles.freshness}>
+                <Notice tone="neutral" icon="store" text={`Вимкнено магазинів: ${excludedStoreIds.length}. Вони не враховані. Змінити можна в Профілі.`} />
+              </View>
+            ) : null}
             {comparison && comparison.staleCount > 0 ? (
               <View style={styles.freshness}>
                 <Notice icon="alert" title="Частину цін не підтверджено" text="Збір не бачив їх понад 3 доби, тому вони не враховані в сумах і порівнянні." />

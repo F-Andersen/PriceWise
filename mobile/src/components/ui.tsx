@@ -159,7 +159,7 @@ export function FreshnessNotice({ collectedAt, detail }: { collectedAt: string |
       icon="clock"
       tone={stale ? "caution" : "neutral"}
       title={`Ціни зібрано ${formatDate(collectedAt)} (${ageLabel(collectedAt)})`}
-      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціна в магазині може відрізнятися.")}
+      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціни із сайтів мереж, без прив'язки до міста. У вашому магазині можуть відрізнятися.")}
     />
   );
 }

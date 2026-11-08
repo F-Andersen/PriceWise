@@ -1,19 +1,19 @@
 import { prisma } from "../prisma";
-import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { compareBaskets, type BasketComparison, type LatestPriceInput } from "./basketComparison";
 
 /**
  * Loads a shopping list, the stores we collect from and the latest price of every
  * list item in every store, then applies the comparison rules in basketComparison.ts.
  */
-export async function compareShoppingList(shoppingListId: string): Promise<BasketComparison> {
+export async function compareShoppingList(shoppingListId: string, excludedStoreIds: string[] = []): Promise<BasketComparison> {
   const list = await prisma.shoppingList.findUnique({
     where: { id: shoppingListId },
     include: { items: { include: { product: { select: { id: true, name: true } } } } }
   });
   if (!list) throw new Error("Shopping list not found");
 
-  const stores = await prisma.store.findMany({ where: collectedStoresWhere, orderBy: { name: "asc" } });
+  const stores = await prisma.store.findMany({ where: selectedStoresWhere(excludedStoreIds), orderBy: { name: "asc" } });
   const productIds = list.items.map((item) => item.productId);
 
   // Newest row first; the first row seen per product and store is its latest price.

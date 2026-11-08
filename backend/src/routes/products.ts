@@ -2,7 +2,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
-import { collectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { parseExcludedStores } from "../utils/storeFilter";
+import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
 import { getAlternatives } from "../services/recommendationService";
 import { isPriceFresh } from "../utils/freshness";
 import { activePrice, toNumber } from "../utils/money";
@@ -72,9 +73,9 @@ function latestStorePrices<T extends { storeId: string; dateCollected: Date }>(p
   return Array.from(map.values());
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   const products = await prisma.product.findMany({
-    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
   res.json(products);
@@ -92,7 +93,7 @@ router.get("/search", async (req, res) => {
           ]
         }
       : undefined,
-    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
   res.json(products);
@@ -101,7 +102,7 @@ router.get("/search", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
-    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } }
+    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } }
   });
   if (!product) return res.status(404).json({ message: "Product not found" });
   res.json(product);
@@ -113,7 +114,7 @@ router.get("/:id/market-prices", async (req, res) => {
 
   const candidates = await prisma.product.findMany({
     where: { category: product.category },
-    include: { prices: { where: { store: collectedStoresWhere }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
+    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
 
@@ -189,7 +190,7 @@ router.delete("/:id", requireAdmin, async (req, res) => {
 });
 
 router.get("/:id/alternatives", async (req, res) => {
-  res.json(await getAlternatives(req.params.id));
+  res.json(await getAlternatives(req.params.id, parseExcludedStores(req.query.excludeStores)));
 });
 
 export default router;

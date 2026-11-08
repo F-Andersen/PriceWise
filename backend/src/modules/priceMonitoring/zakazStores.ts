@@ -19,7 +19,11 @@ export const zakazStores = [
 
 export type ZakazStoreConfig = (typeof zakazStores)[number];
 
-/** Prices on these storefronts depend on the selected city; without a selection they show Kyiv. */
+/**
+ * Placeholder for the required Store.city column. Pages are read without an address, so
+ * the site serves its "default" store and does not say which city that is: prices are not
+ * tied to a known city. The app says so instead of showing this value.
+ */
 const DEFAULT_CITY = "Київ";
 
 /** In dry-run mode missing stores are not created; a placeholder is returned instead. */
@@ -54,3 +58,8 @@ export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve
  * DB (with their old data) but are hidden from lists and comparisons.
  */
 export const collectedStoresWhere = { name: { in: zakazStores.map((store) => store.name) } };
+
+/** Collected stores minus the ones this user switched off. */
+export function selectedStoresWhere(excludedIds: string[] = []) {
+  return excludedIds.length ? { ...collectedStoresWhere, id: { notIn: excludedIds } } : collectedStoresWhere;
+}

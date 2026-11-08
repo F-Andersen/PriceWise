@@ -5,6 +5,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { StorePicker } from "../components/StorePicker";
 import { contentWidth, ErrorState, PageTitle, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
@@ -45,6 +46,7 @@ export function ProfileScreen() {
       ListHeaderComponent={
         <View style={contentWidth}>
           <PageTitle title="Профіль" subtitle={email ?? undefined} />
+          <StorePicker />
           <SectionHeader title="Збережені кошики" />
           {status === "loading" ? <SkeletonList count={2} label="Завантаження кошиків" /> : null}
           {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
