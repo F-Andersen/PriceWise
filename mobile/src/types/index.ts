@@ -183,6 +183,17 @@ export type Offer = {
   label: string;
 };
 
+/** Сторінка акцій. stores і latestCheckedAt рахуються по всіх магазинах, а не лише по вибраному. */
+export type OfferPage = {
+  items: Offer[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  stores: Array<{ storeId: string; count: number }>;
+  latestCheckedAt: string | null;
+};
+
 export type MarketPrice = Price & {
   product: Product;
   matchType: "exact" | "similar";

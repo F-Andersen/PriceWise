@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { Router } from "express";
 import { prisma } from "../prisma";
+import { hasMorePages, parsePagination } from "../utils/pagination";
 import { parseExcludedStores } from "../utils/storeFilter";
 import { zakazStores } from "../modules/priceMonitoring/zakazStores";
 import { isPriceFresh } from "../utils/freshness";
@@ -32,7 +33,8 @@ router.get("/", async (req, res) => {
   const now = new Date();
 
   const latest = await prisma.price.findMany({
-    where: { id: { in: await latestPriceIds(storeId, parseExcludedStores(req.query.excludeStores)) }, isAvailable: true, discountPrice: { not: null } },
+    // Every store's offers, so the counts on the store filter stay complete.
+    where: { id: { in: await latestPriceIds(undefined, parseExcludedStores(req.query.excludeStores)) }, isAvailable: true, discountPrice: { not: null } },
     include: { product: true, store: true }
   });
 
@@ -61,9 +63,23 @@ router.get("/", async (req, res) => {
       };
     })
     .filter((offer) => offer.saveAmount > 0)
-    .sort((a, b) => b.discountPercent - a.discountPercent);
+    .sort((a, b) => b.discountPercent - a.discountPercent || a.id.localeCompare(b.id));
 
-  res.json(offers);
+  const counts = new Map<string, number>();
+  for (const offer of offers) counts.set(offer.store.id, (counts.get(offer.store.id) ?? 0) + 1);
+
+  const { page, limit, skip } = parsePagination(req.query);
+  const matching = storeId ? offers.filter((offer) => offer.store.id === storeId) : offers;
+  const items = matching.slice(skip, skip + limit);
+  res.json({
+    items,
+    total: matching.length,
+    page,
+    limit,
+    hasMore: hasMorePages(skip, items.length, matching.length),
+    stores: [...counts].map(([id, count]) => ({ storeId: id, count })),
+    latestCheckedAt: offers.reduce<Date | null>((latest, offer) => (!latest || offer.lastSeenAt > latest ? offer.lastSeenAt : latest), null)
+  });
 });
 
 export default router;

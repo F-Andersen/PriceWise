@@ -31,12 +31,12 @@ export function HomeScreen() {
   const load = useCallback(() => {
     const id = ++requestId.current;
     const category = activeCategory === "Усі" ? undefined : activeCategory;
-    Promise.all([api.products({ category, limit: 8 }), api.catalogSummary(), api.offers(), api.stores()])
+    Promise.all([api.products({ category, limit: 8 }), api.catalogSummary(), api.offers({ limit: 8 }), api.stores()])
       .then(([nextCatalog, nextSummary, nextOffers, nextStores]) => {
         if (id !== requestId.current) return;
         setCatalog(nextCatalog);
         setSummary(nextSummary);
-        setOffers(nextOffers);
+        setOffers(nextOffers.items);
         setStores(nextStores);
         setStatus("ready");
       })
