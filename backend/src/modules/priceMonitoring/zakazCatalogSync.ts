@@ -280,7 +280,7 @@ export async function syncZakazCatalog(options: CatalogSyncOptions = {}) {
     const created = await prisma.product.create({
       data: {
         name: item.title,
-        brand: item.producer?.trademark?.trim() || "Без бренду",
+        brand: !item.producer?.trademark?.trim() || /^без тм$/i.test(item.producer.trademark.trim()) ? "Без бренду" : item.producer.trademark.trim(),
         category: categoryLabel(categoryId, host, item.title),
         barcode: candidates[0],
         unit: "шт",

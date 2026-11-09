@@ -146,6 +146,14 @@ GitHub Actions перевіряє збірку backend, типи мобільн�
 sudo docker compose -p pricewise -f /etc/pricewise/compose.yml --env-file /etc/pricewise/production.env exec api npm run monitor:runs:prod -- --issues
 ```
 
+Черга можливих дублікатів товарів (після кожного збору; нічого не об'єднується без підтвердження):
+
+```bash
+sudo docker compose -p pricewise -f /etc/pricewise/compose.yml --env-file /etc/pricewise/production.env exec api npm run matches:prod -- --limit=50
+```
+
+Команди: `approve <id>` об'єднує пару, `reject <id>` більше її не пропонує, `approve-all --yes` об'єднує всі пари з однаковою назвою.
+
 Перевірка на сервері:
 
 ```bash
