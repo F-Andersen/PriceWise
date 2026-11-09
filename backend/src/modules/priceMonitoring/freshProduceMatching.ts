@@ -2,6 +2,7 @@ import type { Product } from "@prisma/client";
 import { prisma } from "../../prisma";
 import { freshMeatMatch } from "./freshMeatMatching";
 import { classifyBarcode } from "./gtin";
+import { moveProductData } from "./productMerge";
 
 /**
  * Loose fruit and vegetables sold by weight have no global barcode: every store
@@ -145,23 +146,7 @@ export async function mergeFreshProduce({ dryRun = false } = {}): Promise<FreshM
 
     await prisma.$transaction(async (tx) => {
       for (const other of others) {
-        await tx.productSource.updateMany({ where: { productId: other.id }, data: { productId: target.id } });
-        await tx.price.updateMany({ where: { productId: other.id }, data: { productId: target.id } });
-        await tx.recipeItem.updateMany({ where: { productId: other.id }, data: { productId: target.id } });
-
-        // A shopping list may already contain the target: add the quantities up.
-        for (const item of await tx.shoppingListItem.findMany({ where: { productId: other.id } })) {
-          const existing = await tx.shoppingListItem.findUnique({
-            where: { shoppingListId_productId: { shoppingListId: item.shoppingListId, productId: target.id } }
-          });
-          if (existing) {
-            await tx.shoppingListItem.update({ where: { id: existing.id }, data: { quantity: existing.quantity + item.quantity } });
-            await tx.shoppingListItem.delete({ where: { id: item.id } });
-          } else {
-            await tx.shoppingListItem.update({ where: { id: item.id }, data: { productId: target.id } });
-          }
-        }
-        await tx.product.delete({ where: { id: other.id } });
+        await moveProductData(tx, target.id, other.id);
       }
 
       await tx.product.update({

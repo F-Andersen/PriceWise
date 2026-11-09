@@ -24,7 +24,7 @@ const IGNORED = new Set([
 ]);
 
 /** Flavours: a cherry and a peach yogurt are the same kind of product. */
-const FLAVOURS = [
+export const FLAVOURS = [
   "вишн", "персик", "полуниц", "ягід", "ягод", "малин", "чорниц", "банан", "ваніл", "шоколад", "какао", "карамел",
   "лайм", "м'ят", "лимон", "апельсин", "абрикос", "яблу", "груш", "манго", "кокос", "горіх", "лісов", "згущ"
 ];
