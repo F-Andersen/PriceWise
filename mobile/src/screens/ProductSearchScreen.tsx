@@ -6,13 +6,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ProductGrid } from "../components/ProductGrid";
-import { Chip, ChipRow, contentWidth, ErrorState, PageTitle, SkeletonList, StateView } from "../components/ui";
+import { Chip, ChipRow, ErrorState, PageTitle, SkeletonList, StateView, wideContent } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { ProductPage } from "../types";
 import { countLabel } from "../utils/prices";
-import { colors, layout, radii, spacing, type } from "../utils/theme";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 
 export function ProductSearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -30,7 +30,7 @@ export function ProductSearchScreen() {
     let active = true;
     setStatus("loading");
     const timer = setTimeout(() => {
-      api.searchProducts(query.trim(), { category: category === "Усі" ? undefined : category })
+      api.searchProducts(query.trim(), { sort: query.trim() ? undefined : "popular", category: category === "Усі" ? undefined : category })
         .then((next) => {
           if (!active) return;
           setResult(next);
@@ -60,7 +60,7 @@ export function ProductSearchScreen() {
     if (!result || loadingMore) return;
     setLoadingMore(true);
     try {
-      const next = await api.searchProducts(query.trim(), { category: category === "Усі" ? undefined : category, page: result.page + 1 });
+      const next = await api.searchProducts(query.trim(), { sort: query.trim() ? undefined : "popular", category: category === "Усі" ? undefined : category, page: result.page + 1 });
       setResult({ ...next, items: [...result.items, ...next.items] });
     } catch {
       // Кнопка лишається: можна спробувати ще раз.
@@ -71,7 +71,7 @@ export function ProductSearchScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={contentWidth}>
+      <View style={wideContent}>
         <PageTitle title="Пошук товарів" />
         <View style={[styles.searchBar, focused && styles.searchBarFocused]}>
           <Icon name="search" size={20} color={colors.muted} />
@@ -133,12 +133,12 @@ export function ProductSearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 52, paddingLeft: spacing.lg, paddingRight: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.borderStrong },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 56, paddingLeft: spacing.lg, paddingRight: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border },
   searchBarFocused: { borderColor: colors.primary, borderWidth: 2 },
   // Фокус показує рамка всього поля, а не вбудований контур браузера.
   input: { ...type.body, flex: 1, minWidth: 0, minHeight: 48, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : {}) },
   clear: { minHeight: layout.minTouch, justifyContent: "center", paddingHorizontal: spacing.sm },
-  clearText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  clearText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   results: { marginTop: spacing.md },
   count: { ...type.small, marginBottom: spacing.sm },
   more: { marginTop: spacing.sm }

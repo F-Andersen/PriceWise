@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   pressed: { opacity: 0.75 },
-  card: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  card: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
   body: { flex: 1, minWidth: 0 },
   desc: { marginTop: 2 },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm }

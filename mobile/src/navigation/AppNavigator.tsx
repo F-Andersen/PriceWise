@@ -14,7 +14,7 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { RecipeDetailsScreen } from "../screens/RecipeDetailsScreen";
 import { RecipesScreen } from "../screens/RecipesScreen";
 import { ShoppingListScreen } from "../screens/ShoppingListScreen";
-import { colors, layout, spacing, type } from "../utils/theme";
+import { colors, layout, spacing, type, fonts, radii, shadowRaised } from "../utils/theme";
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -51,7 +51,7 @@ function HeaderBackButton({ onPress }: { onPress: () => void }) {
 function PriceWiseTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.xs) }]}>
+    <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
       <View accessibilityRole="tablist" style={styles.tabRow}>
         {state.routes.map((route, index) => {
           const focused = state.index === index;
@@ -69,7 +69,7 @@ function PriceWiseTabBar({ state, descriptors, navigation }: BottomTabBarProps) 
               style={styles.tabItem}
             >
               <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
-                <Icon name={tabIcons[route.name]} size={21} color={focused ? colors.primaryDark : colors.muted} strokeWidth={focused ? 2.1 : 1.7} />
+                <Icon name={tabIcons[route.name]} size={21} color={focused ? colors.ink : colors.onInkMuted} strokeWidth={focused ? 2.1 : 1.7} />
               </View>
               <Text numberOfLines={1} style={[styles.tabLabel, focused && styles.tabLabelActive]}>{title}</Text>
             </Pressable>
@@ -103,7 +103,7 @@ export function AppNavigator() {
       screenOptions={({ navigation }) => ({
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: "600", fontSize: 17 },
+        headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17 },
         headerShadowVisible: false,
         headerBackVisible: false,
         headerLeft: () => (navigation.canGoBack() ? <HeaderBackButton onPress={navigation.goBack} /> : null),
@@ -123,11 +123,11 @@ export function AppNavigator() {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   backButton: { width: layout.minTouch, height: layout.minTouch, alignItems: "center", justifyContent: "center", marginRight: spacing.xs },
-  tabBar: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.xs },
-  tabRow: { flexDirection: "row", width: "100%", maxWidth: layout.maxContent, alignSelf: "center" },
-  tabItem: { flex: 1, minWidth: 0, minHeight: 56, alignItems: "center", justifyContent: "center", gap: 2 },
-  tabIcon: { width: 44, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  tabIconActive: { backgroundColor: colors.primarySoft },
-  tabLabel: { ...type.label, fontSize: 11, fontWeight: "500" },
-  tabLabelActive: { color: colors.primaryDark, fontWeight: "700" }
+  tabBar: { backgroundColor: colors.background, paddingTop: spacing.xs, paddingHorizontal: spacing.md },
+  tabRow: { ...shadowRaised, flexDirection: "row", width: "100%", maxWidth: 560, alignSelf: "center", backgroundColor: colors.ink, borderRadius: radii.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.xs },
+  tabItem: { flex: 1, minWidth: 0, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2 },
+  tabIcon: { width: 40, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  tabIconActive: { backgroundColor: colors.gold },
+  tabLabel: { ...type.label, fontSize: 10.5, lineHeight: 14, color: colors.onInkMuted, fontFamily: fonts.medium },
+  tabLabelActive: { color: colors.onInk, fontFamily: fonts.bold }
 });

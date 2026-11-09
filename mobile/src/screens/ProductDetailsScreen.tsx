@@ -12,7 +12,7 @@ import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
 import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
-import { colors, layout, radii, spacing, type } from "../utils/theme";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 
 function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
   const unconfirmed = isStale(checkedAt(price));
@@ -221,9 +221,9 @@ const styles = StyleSheet.create({
   badges: { alignItems: "flex-end", gap: spacing.xs, marginTop: 2 },
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
   unavailable: { color: colors.muted },
-  similarName: { ...type.small, color: colors.similar, fontWeight: "500" },
+  similarName: { ...type.small, color: colors.similar, fontFamily: fonts.medium },
   source: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: layout.minTouch, alignSelf: "flex-start" },
-  sourceText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  sourceText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   altRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 60, paddingVertical: spacing.md },
   emptyText: { color: colors.textSoft }
 });

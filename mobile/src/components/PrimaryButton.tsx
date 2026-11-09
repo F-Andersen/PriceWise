@@ -34,15 +34,15 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: "row",
     gap: spacing.sm,
-    minHeight: 50,
+    minHeight: 52,
     backgroundColor: colors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radii.md,
+    borderRadius: radii.pill,
     alignItems: "center",
     justifyContent: "center"
   },
-  secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.borderStrong },
+  secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   inactive: { backgroundColor: colors.surfaceMuted, borderColor: colors.surfaceMuted },
   pressed: { opacity: 0.85 },
   text: { ...type.bodyStrong, textAlign: "center" }
