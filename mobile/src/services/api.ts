@@ -89,15 +89,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
-type CatalogOptions = { query?: string; category?: string; page?: number; limit?: number; ids?: string[] };
+type CatalogOptions = { query?: string; category?: string; page?: number; limit?: number; ids?: string[]; sort?: "popular" };
 
-function catalogQuery({ query, category, page, limit, ids }: CatalogOptions) {
+function catalogQuery({ query, category, page, limit, ids, sort }: CatalogOptions) {
   const parts = [
     query ? `query=${encodeURIComponent(query)}` : "",
     category ? `category=${encodeURIComponent(category)}` : "",
     page ? `page=${page}` : "",
     limit ? `limit=${limit}` : "",
-    ids?.length ? `ids=${encodeURIComponent(ids.join(","))}` : ""
+    ids?.length ? `ids=${encodeURIComponent(ids.join(","))}` : "",
+    sort ? `sort=${sort}` : ""
   ].filter(Boolean);
   return parts.length ? `?${parts.join("&")}` : "";
 }
