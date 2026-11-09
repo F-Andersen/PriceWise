@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { LineChart } from "react-native-chart-kit";
 import { Icon } from "../components/Icon";
+import { PriceInsight } from "../components/PriceInsight";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, PriceDate, ProductImage, SectionHeader, SkeletonList } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -120,6 +121,7 @@ export function ProductDetailsScreen() {
         </Card>
 
         <FreshnessNotice collectedAt={newest} />
+        <PriceInsight productId={product.id} />
 
         <SectionHeader title="Ціни в магазинах" subtitle={isWeighedProduce ? "Той самий продукт на вагу" : "Цей самий товар"} />
         {isWeighedProduce && exact.length > 1 ? (

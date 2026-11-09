@@ -6,6 +6,7 @@ import { prisma } from "../prisma";
 import { hasMorePages, MAX_PAGE_SIZE, parsePagination } from "../utils/pagination";
 import { parseExcludedStores, parseIdList } from "../utils/storeFilter";
 import { selectedStoresWhere, zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { analyzeProduct, ANALYSIS_WINDOW_DAYS } from "../services/priceAnalytics";
 import { productKind } from "../services/productKind";
 import { getAlternatives } from "../services/recommendationService";
 import { isPriceFresh, maxPriceAgeMs } from "../utils/freshness";
@@ -231,6 +232,25 @@ router.put("/:id", requireAdmin, async (req, res) => {
 router.delete("/:id", requireAdmin, async (req, res) => {
   await prisma.product.delete({ where: { id: req.params.id } });
   res.status(204).send();
+});
+
+/** Whether the current price is good against this product's own history. */
+router.get("/:id/analytics", async (req, res) => {
+  const product = await prisma.product.findUnique({ where: { id: req.params.id }, select: { id: true } });
+  if (!product) return res.status(404).json({ message: "Product not found" });
+
+  const windowStart = new Date(Date.now() - ANALYSIS_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const rows = await prisma.price.findMany({
+    where: { productId: product.id, lastSeenAt: { gte: windowStart }, store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) },
+    include: { store: { select: { id: true, name: true } } }
+  });
+  const byStore = new Map<string, { store: { id: string; name: string }; rows: typeof rows }>();
+  for (const row of rows) {
+    const entry = byStore.get(row.storeId) ?? { store: row.store, rows: [] };
+    entry.rows.push(row);
+    byStore.set(row.storeId, entry);
+  }
+  res.json(analyzeProduct([...byStore.values()]));
 });
 
 router.get("/:id/alternatives", async (req, res) => {
