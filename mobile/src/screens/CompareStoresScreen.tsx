@@ -1,6 +1,7 @@
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { BasketPlanSection } from "../components/BasketPlanSection";
 import { Icon } from "../components/Icon";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -178,6 +179,8 @@ export function CompareStoresScreen() {
                 <Notice icon="alert" title="Частину цін не підтверджено" text="Збір не бачив їх понад 3 доби, тому вони не враховані в сумах і порівнянні." />
               </View>
             ) : null}
+
+            <BasketPlanSection listId={route.params.listId} />
 
             {complete.length ? (
               <>

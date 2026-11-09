@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from "react-native";
-import { Alternative, BasketComparison, CatalogSummary, MarketPrice, OfferPage, ProductPage, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { Alternative, BasketComparison, BasketPlanResult, CatalogSummary, MarketPrice, OfferPage, ProductAnalysis, ProductPage, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
 const FALLBACK_LAN_HOST = "192.168.0.221";
 
@@ -127,6 +127,8 @@ export const api = {
   deleteItem: (listId: string, itemId: string) => request(`/shopping-lists/${listId}/items/${itemId}`, { method: "DELETE" }),
   compare: (listId: string) => request<BasketComparison>(withStores(`/shopping-lists/${listId}/compare`)),
   recommendations: (listId: string) => request<Recommendation[]>(withStores(`/shopping-lists/${listId}/recommendations`)),
+  plan: (listId: string, extraStoreCost: number) => request<BasketPlanResult>(withStores(`/shopping-lists/${listId}/plan?extraStoreCost=${extraStoreCost}`)),
+  productAnalytics: (id: string) => request<ProductAnalysis>(withStores(`/products/${id}/analytics`)),
   recipes: () => request<Recipe[]>("/recipes"),
   recipe: (id: string) => request<Recipe>(`/recipes/${id}`),
   addRecipeToList: (recipeId: string, shoppingListId?: string) => request<ShoppingList>(`/recipes/${recipeId}/add-to-shopping-list`, { method: "POST", body: JSON.stringify({ shoppingListId }) })
