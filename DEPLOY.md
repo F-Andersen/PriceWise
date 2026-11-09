@@ -140,6 +140,12 @@ GitHub Actions перевіряє збірку backend, типи мобільн�
 
 Тести: `npm test` у `backend` і `mobile`. CI запускає їх перед збіркою, тож тест, що не пройшов, зупиняє деплой.
 
+Журнал зборів цін (статус, кількість цін, що не вдалося прочитати):
+
+```bash
+sudo docker compose -p pricewise -f /etc/pricewise/compose.yml --env-file /etc/pricewise/production.env exec api npm run monitor:runs:prod -- --issues
+```
+
 Перевірка на сервері:
 
 ```bash

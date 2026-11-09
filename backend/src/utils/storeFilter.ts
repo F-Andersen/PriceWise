@@ -4,10 +4,15 @@
  * dropped, so a bad value can only widen the result back to all stores.
  */
 export function parseExcludedStores(value: unknown): string[] {
+  return parseIdList(value, 50);
+}
+
+/** Comma-separated ids from a query string: malformed ones are dropped, the rest de-duplicated. */
+export function parseIdList(value: unknown, max: number): string[] {
   if (typeof value !== "string") return [];
   const ids = value
     .split(",")
     .map((id) => id.trim())
     .filter((id) => /^[a-zA-Z0-9_-]{1,64}$/.test(id));
-  return [...new Set(ids)].slice(0, 50);
+  return [...new Set(ids)].slice(0, max);
 }

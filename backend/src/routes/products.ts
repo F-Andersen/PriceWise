@@ -1,11 +1,13 @@
-import { Router } from "express";
+import { Prisma } from "@prisma/client";
+import { Request, Router } from "express";
 import { z } from "zod";
 import { requireAdmin } from "../middleware/auth";
 import { prisma } from "../prisma";
-import { parseExcludedStores } from "../utils/storeFilter";
-import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
+import { hasMorePages, MAX_PAGE_SIZE, parsePagination } from "../utils/pagination";
+import { parseExcludedStores, parseIdList } from "../utils/storeFilter";
+import { selectedStoresWhere, zakazStores } from "../modules/priceMonitoring/zakazStores";
 import { getAlternatives } from "../services/recommendationService";
-import { isPriceFresh } from "../utils/freshness";
+import { isPriceFresh, maxPriceAgeMs } from "../utils/freshness";
 import { activePrice, toNumber } from "../utils/money";
 
 const router = Router();
@@ -73,18 +75,25 @@ function latestStorePrices<T extends { storeId: string; dateCollected: Date }>(p
   return Array.from(map.values());
 }
 
-router.get("/", async (req, res) => {
-  const products = await prisma.product.findMany({
-    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
-    orderBy: { name: "asc" }
-  });
-  res.json(products);
+/** Newest row per store: enough for lists, and far smaller than the whole history. */
+const latestPricesInclude = (excludedStoreIds: string[]) => ({
+  prices: {
+    where: { store: selectedStoresWhere(excludedStoreIds) },
+    include: { store: true },
+    orderBy: [{ dateCollected: "desc" as const }, { id: "desc" as const }],
+    distinct: ["storeId" as const]
+  }
 });
 
-router.get("/search", async (req, res) => {
-  const query = String(req.query.query || "").trim();
-  const products = await prisma.product.findMany({
-    where: query
+async function listProducts(req: Request, query: string) {
+  const { page, limit, skip } = parsePagination(req.query);
+  const excludedStoreIds = parseExcludedStores(req.query.excludeStores);
+  const ids = parseIdList(req.query.ids, MAX_PAGE_SIZE);
+  const category = typeof req.query.category === "string" && req.query.category.trim() ? req.query.category.trim() : undefined;
+
+  // Category counts ignore the selected category, so the other chips stay available.
+  const baseWhere: Prisma.ProductWhereInput = {
+    ...(query
       ? {
           OR: [
             { name: { contains: query, mode: "insensitive" } },
@@ -92,11 +101,82 @@ router.get("/search", async (req, res) => {
             { category: { contains: query, mode: "insensitive" } }
           ]
         }
-      : undefined,
-    include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
-    orderBy: { name: "asc" }
+      : {}),
+    ...(ids.length ? { id: { in: ids } } : {})
+  };
+  const where: Prisma.ProductWhereInput = category ? { ...baseWhere, category } : baseWhere;
+
+  const [items, total, facets] = await Promise.all([
+    prisma.product.findMany({ where, include: latestPricesInclude(excludedStoreIds), orderBy: [{ name: "asc" }, { id: "asc" }], skip, take: limit }),
+    prisma.product.count({ where }),
+    prisma.product.groupBy({ by: ["category"], where: baseWhere, _count: { _all: true }, orderBy: { category: "asc" } })
+  ]);
+
+  return {
+    items,
+    total,
+    page,
+    limit,
+    hasMore: hasMorePages(skip, items.length, total),
+    categories: facets.map((facet) => ({ name: facet.category, count: facet._count._all }))
+  };
+}
+
+router.get("/", async (req, res) => {
+  res.json(await listProducts(req, ""));
+});
+
+router.get("/search", async (req, res) => {
+  res.json(await listProducts(req, String(req.query.query || "").trim()));
+});
+
+/**
+ * Catalogue facts for the home screen without loading the catalogue. Uses the same
+ * rule as activePrice (utils/money.ts) in SQL: a discount counts while its promotion
+ * runs; only available prices confirmed within the age limit are considered.
+ */
+router.get("/summary", async (req, res) => {
+  const excludedStoreIds = parseExcludedStores(req.query.excludeStores);
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - maxPriceAgeMs());
+  const latest = Prisma.sql`
+    SELECT DISTINCT ON (p."productId", p."storeId") p.*
+    FROM "Price" p JOIN "Store" s ON s.id = p."storeId"
+    WHERE s.name IN (${Prisma.join(zakazStores.map((store) => store.name))})
+      ${excludedStoreIds.length ? Prisma.sql`AND p."storeId" NOT IN (${Prisma.join(excludedStoreIds)})` : Prisma.empty}
+    ORDER BY p."productId", p."storeId", p."dateCollected" DESC, p.id DESC
+  `;
+  const [total, facts, cheapest] = await Promise.all([
+    prisma.product.count(),
+    prisma.$queryRaw<Array<{ latestCheckedAt: Date | null; storesWithPrices: bigint }>>(Prisma.sql`
+      WITH latest AS (${latest})
+      SELECT MAX("lastSeenAt") AS "latestCheckedAt",
+             COUNT(DISTINCT "storeId") FILTER (WHERE "isAvailable" AND "lastSeenAt" >= ${cutoff}) AS "storesWithPrices"
+      FROM latest
+    `),
+    prisma.$queryRaw<Array<{ productId: string }>>(Prisma.sql`
+      WITH latest AS (${latest})
+      SELECT "productId"
+      FROM latest
+      WHERE "isAvailable" AND "lastSeenAt" >= ${cutoff}
+      GROUP BY "productId"
+      ORDER BY MIN(CASE
+        WHEN "discountPrice" IS NULL THEN price
+        WHEN "promoEndsAt" IS NULL OR "promoEndsAt" >= ${now} THEN "discountPrice"
+        ELSE COALESCE("oldPrice", price)
+      END) ASC, "productId" ASC
+      LIMIT 5
+    `)
+  ]);
+
+  const cheapestIds = cheapest.map((row) => row.productId);
+  const products = await prisma.product.findMany({ where: { id: { in: cheapestIds } }, include: latestPricesInclude(excludedStoreIds) });
+  res.json({
+    total,
+    latestCheckedAt: facts[0]?.latestCheckedAt ?? null,
+    storesWithPrices: Number(facts[0]?.storesWithPrices ?? 0),
+    cheapest: cheapestIds.map((id) => products.find((product) => product.id === id)).filter(Boolean)
   });
-  res.json(products);
 });
 
 router.get("/:id", async (req, res) => {

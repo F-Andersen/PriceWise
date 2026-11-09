@@ -52,6 +52,23 @@ export type ShoppingList = {
   items: ShoppingListItem[];
 };
 
+/** Сторінка каталогу. categories рахуються без урахування вибраної категорії. */
+export type ProductPage = {
+  items: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  categories: Array<{ name: string; count: number }>;
+};
+
+export type CatalogSummary = {
+  total: number;
+  latestCheckedAt: string | null;
+  storesWithPrices: number;
+  cheapest: Product[];
+};
+
 /** Рядок кошика, знайдений у магазині. */
 export type ComparisonItem = {
   productId: string;
@@ -164,6 +181,17 @@ export type Offer = {
   lastSeenAt?: string;
   promoEndsAt?: string | null;
   label: string;
+};
+
+/** Сторінка акцій. stores і latestCheckedAt рахуються по всіх магазинах, а не лише по вибраному. */
+export type OfferPage = {
+  items: Offer[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+  stores: Array<{ storeId: string; count: number }>;
+  latestCheckedAt: string | null;
 };
 
 export type MarketPrice = Price & {

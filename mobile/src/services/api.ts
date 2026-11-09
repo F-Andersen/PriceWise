@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from "react-native";
-import { Alternative, BasketComparison, MarketPrice, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { Alternative, BasketComparison, CatalogSummary, MarketPrice, OfferPage, ProductPage, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
 const FALLBACK_LAN_HOST = "192.168.0.221";
 
@@ -89,18 +89,36 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json();
 }
 
+type CatalogOptions = { query?: string; category?: string; page?: number; limit?: number; ids?: string[] };
+
+function catalogQuery({ query, category, page, limit, ids }: CatalogOptions) {
+  const parts = [
+    query ? `query=${encodeURIComponent(query)}` : "",
+    category ? `category=${encodeURIComponent(category)}` : "",
+    page ? `page=${page}` : "",
+    limit ? `limit=${limit}` : "",
+    ids?.length ? `ids=${encodeURIComponent(ids.join(","))}` : ""
+  ].filter(Boolean);
+  return parts.length ? `?${parts.join("&")}` : "";
+}
+
 export const api = {
   register: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
-  products: () => request<Product[]>(withStores("/products")),
-  searchProducts: (query: string) => request<Product[]>(withStores(`/products/search?query=${encodeURIComponent(query)}`)),
+  products: (options: CatalogOptions = {}) => request<ProductPage>(withStores(`/products${catalogQuery(options)}`)),
+  productsByIds: (ids: string[]) => request<ProductPage>(withStores(`/products${catalogQuery({ ids, limit: 100 })}`)),
+  catalogSummary: () => request<CatalogSummary>(withStores("/products/summary")),
+  searchProducts: (query: string, options: CatalogOptions = {}) => request<ProductPage>(withStores(`/products/search${catalogQuery({ ...options, query })}`)),
   product: (id: string) => request<Product>(withStores(`/products/${id}`)),
   marketPrices: (id: string) => request<MarketPrice[]>(withStores(`/products/${id}/market-prices`)),
   alternatives: (id: string) => request<Alternative[]>(withStores(`/products/${id}/alternatives`)),
   stores: () => request<Store[]>(withStores("/stores")),
   /** Усі мережі, зокрема вимкнені: для екрана вибору. */
   allStores: () => request<Store[]>("/stores"),
-  offers: (storeId?: string) => request<Offer[]>(withStores(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`)),
+  offers: ({ storeId, page, limit }: { storeId?: string; page?: number; limit?: number } = {}) => {
+    const parts = [storeId ? `storeId=${encodeURIComponent(storeId)}` : "", page ? `page=${page}` : "", limit ? `limit=${limit}` : ""].filter(Boolean);
+    return request<OfferPage>(withStores(`/offers${parts.length ? `?${parts.join("&")}` : ""}`));
+  },
   lists: () => request<ShoppingList[]>("/shopping-lists"),
   createList: (title: string) => request<ShoppingList>("/shopping-lists", { method: "POST", body: JSON.stringify({ title }) }),
   list: (id: string) => request<ShoppingList>(withStores(`/shopping-lists/${id}`)),

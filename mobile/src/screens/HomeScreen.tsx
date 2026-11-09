@@ -1,6 +1,6 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "../components/Icon";
@@ -10,51 +10,46 @@ import { Chip, ChipRow, contentWidth, ErrorState, FreshnessNotice, SectionHeader
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
-import { Offer, Product, Store } from "../types";
-import { countLabel, formatPrice, latestCollectedAt, minProductPrice, storesWithPrices } from "../utils/prices";
+import { CatalogSummary, Offer, Product, ProductPage, Store } from "../types";
+import { countLabel, formatPrice, minProductPrice } from "../utils/prices";
 import { colors, radii, spacing, type } from "../utils/theme";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const addToCart = useAddToCart();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<ProductPage | null>(null);
+  const [summary, setSummary] = useState<CatalogSummary | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [activeCategory, setActiveCategory] = useState("Усі");
 
+  // Лише остання відповідь має значення, якщо користувач швидко перемикає категорії.
+  const requestId = useRef(0);
+
   const load = useCallback(() => {
-    Promise.all([api.products(), api.offers(), api.stores()])
-      .then(([nextProducts, nextOffers, nextStores]) => {
-        setProducts(nextProducts);
-        setOffers(nextOffers);
+    const id = ++requestId.current;
+    const category = activeCategory === "Усі" ? undefined : activeCategory;
+    Promise.all([api.products({ category, limit: 8 }), api.catalogSummary(), api.offers({ limit: 8 }), api.stores()])
+      .then(([nextCatalog, nextSummary, nextOffers, nextStores]) => {
+        if (id !== requestId.current) return;
+        setCatalog(nextCatalog);
+        setSummary(nextSummary);
+        setOffers(nextOffers.items);
         setStores(nextStores);
         setStatus("ready");
       })
       .catch(() => setStatus((current) => (current === "ready" ? current : "error")));
-  }, []);
+  }, [activeCategory]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const categories = useMemo(() => ["Усі", ...Array.from(new Set(products.map((product) => product.category)))], [products]);
-
-  const filtered = useMemo(
-    () => products.filter((product) => activeCategory === "Усі" || product.category === activeCategory).slice(0, 8),
-    [activeCategory, products]
-  );
-
-  const best = useMemo(
-    () =>
-      products
-        .filter((product) => minProductPrice(product) !== null)
-        .sort((a, b) => (minProductPrice(a) || 0) - (minProductPrice(b) || 0))
-        .slice(0, 5),
-    [products]
-  );
+  const categories = ["Усі", ...(catalog?.categories.map((item) => item.name) ?? [])];
+  const filtered = catalog?.items ?? [];
+  const best = summary?.cheapest ?? [];
 
   const openProduct = (product: Product) => navigation.navigate("ProductDetails", { productId: product.id });
-  const pricedStores = storesWithPrices(products);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]} showsVerticalScrollIndicator={false}>
@@ -76,13 +71,13 @@ export function HomeScreen() {
         {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
 
         {status === "ready" ? (
-          products.length === 0 ? (
+          !summary?.total ? (
             <StateView icon="search" title="Каталог порожній" text="Товари з'являться після імпорту цін." />
           ) : (
             <>
               <FreshnessNotice
-                collectedAt={latestCollectedAt(products)}
-                detail={`У каталозі ${countLabel(products.length, "товар", "товари", "товарів")}. Ціни є у ${pricedStores} з ${stores.length} магазинів. Перевіряйте ціну й наявність перед покупкою.`}
+                collectedAt={summary.latestCheckedAt}
+                detail={`У каталозі ${countLabel(summary.total, "товар", "товари", "товарів")}. Ціни є у ${summary.storesWithPrices} з ${stores.length} магазинів. Перевіряйте ціну й наявність перед покупкою.`}
               />
 
               {offers.length ? (

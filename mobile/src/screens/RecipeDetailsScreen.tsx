@@ -22,8 +22,9 @@ export function RecipeDetailsScreen() {
   const load = useCallback(() => {
     setFailed(false);
     // Відповідь /recipes/:id не містить цін, тому вони беруться з каталогу.
-    Promise.all([api.recipe(route.params.recipeId), api.products().catch(() => [] as Product[])])
-      .then(([nextRecipe, products]) => {
+    api.recipe(route.params.recipeId)
+      .then(async (nextRecipe) => {
+        const products = await api.productsByIds(nextRecipe.items.map((item) => item.product.id)).then((result) => result.items).catch(() => [] as Product[]);
         const byId = new Map(products.map((product) => [product.id, product]));
         setRecipe({
           ...nextRecipe,
