@@ -15,7 +15,9 @@
     "monitor:prices:prod": "node dist/src/modules/priceMonitoring/runPriceCollection.js",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "monitor:runs": "tsx src/modules/priceMonitoring/runCollectionLog.ts",
-    "monitor:runs:prod": "node dist/src/modules/priceMonitoring/runCollectionLog.js"
+    "monitor:runs:prod": "node dist/src/modules/priceMonitoring/runCollectionLog.js",
+    "matches": "tsx src/modules/priceMonitoring/runMatchReview.ts",
+    "matches:prod": "node dist/src/modules/priceMonitoring/runMatchReview.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

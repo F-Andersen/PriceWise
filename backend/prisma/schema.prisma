@@ -39,6 +39,8 @@ model Product {
   sources     ProductSource[]
   listItems   ShoppingListItem[]
   recipeItems RecipeItem[]
+  matchesAsA  MatchCandidate[] @relation("MatchA")
+  matchesAsB  MatchCandidate[] @relation("MatchB")
 
   @@index([name])
   @@index([brand])
@@ -79,6 +81,26 @@ model Price {
 
   @@index([productId, storeId, dateCollected])
   @@index([lastSeenAt])
+}
+
+/// Two products that may be the same item, waiting for a person's decision.
+model MatchCandidate {
+  id         String    @id @default(cuid())
+  productAId String
+  productBId String
+  /// 0-100: how close the names are.
+  score      Int
+  /// same_name or similar_name
+  reason     String
+  /// pending or rejected. An approved pair is merged, which removes this row.
+  status     String    @default("pending")
+  createdAt  DateTime  @default(now())
+  decidedAt  DateTime?
+  productA   Product   @relation("MatchA", fields: [productAId], references: [id], onDelete: Cascade)
+  productB   Product   @relation("MatchB", fields: [productBId], references: [id], onDelete: Cascade)
+
+  @@unique([productAId, productBId])
+  @@index([status, score])
 }
 
 /// One price collection run: how it went and what could not be read.

@@ -6,6 +6,7 @@ import { prisma } from "../prisma";
 import { hasMorePages, MAX_PAGE_SIZE, parsePagination } from "../utils/pagination";
 import { parseExcludedStores, parseIdList } from "../utils/storeFilter";
 import { selectedStoresWhere, zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { productKind } from "../services/productKind";
 import { getAlternatives } from "../services/recommendationService";
 import { isPriceFresh, maxPriceAgeMs } from "../utils/freshness";
 import { activePrice, toNumber } from "../utils/money";
@@ -21,51 +22,6 @@ const productSchema = z.object({
   imageUrl: z.string().optional().nullable(),
   description: z.string().optional().nullable()
 });
-
-const stopWords = new Set([
-  "для",
-  "без",
-  "за",
-  "та",
-  "або",
-  "шт",
-  "кг",
-  "г",
-  "л",
-  "мл",
-  "україна",
-  "охолоджене",
-  "охолоджений",
-  "свіжий",
-  "свіжа",
-  "акційний",
-  "акційна"
-]);
-
-function tokens(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}'’]+/gu, " ")
-    .split(/\s+/)
-    .map((token) => token.trim())
-    .filter((token) => token.length > 2 && !stopWords.has(token) && !/^\d+$/.test(token));
-}
-
-function similarityScore(target: { id: string; name: string; brand: string; category: string }, candidate: { id: string; name: string; brand: string; category: string }) {
-  if (target.id === candidate.id) return 100;
-  if (target.category !== candidate.category) return -1;
-
-  const targetTokens = new Set(tokens(`${target.name} ${target.brand}`));
-  const candidateTokens = new Set(tokens(`${candidate.name} ${candidate.brand}`));
-  let score = 0;
-
-  for (const token of targetTokens) {
-    if (candidateTokens.has(token)) score += 2;
-  }
-
-  if (target.brand && candidate.brand && target.brand.toLowerCase() === candidate.brand.toLowerCase()) score += 3;
-  return score;
-}
 
 function latestStorePrices<T extends { storeId: string; dateCollected: Date }>(prices: T[]) {
   const map = new Map<string, T>();
@@ -192,8 +148,16 @@ router.get("/:id/market-prices", async (req, res) => {
   const product = await prisma.product.findUnique({ where: { id: req.params.id } });
   if (!product) return res.status(404).json({ message: "Product not found" });
 
+  // "Similar" means the same kind of product (see productKind), so butter never shows milk.
+  const kind = productKind(product.name);
+  const headWord = product.name.trim().split(/\s+/)[0];
   const candidates = await prisma.product.findMany({
-    where: { category: product.category },
+    where: {
+      OR: [
+        { id: product.id },
+        ...(kind ? [{ name: { startsWith: headWord, mode: "insensitive" as const } }, ...(kind.startsWith("meat:") ? [{ category: "М'ясо" }] : [])] : [])
+      ]
+    },
     include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } },
     orderBy: { name: "asc" }
   });
@@ -209,8 +173,8 @@ router.get("/:id/market-prices", async (req, res) => {
   >();
 
   for (const candidate of candidates) {
-    const score = similarityScore(product, candidate);
-    if (score < 0) continue;
+    if (candidate.id !== product.id && productKind(candidate.name) !== kind) continue;
+    const score = candidate.brand.toLowerCase() === product.brand.toLowerCase() ? 1 : 0;
 
     // An unconfirmed price of this very product stays visible (the app labels it);
     // a similar product is only worth showing with a confirmed price.
