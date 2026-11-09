@@ -120,8 +120,11 @@ export function countLabel(count: number, one: string, few: string, many: string
   return `${count} ${plural(count, one, few, many)}`;
 }
 
-export function ageLabel(value: string | Date) {
-  const days = daysSince(value);
+/** Підпис за календарними днями: вчорашня ціна вночі не стає «сьогоднішньою». */
+export function ageLabel(value: string | Date, now = new Date()) {
+  const date = new Date(value);
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.max(0, Math.round((startOfDay(now) - startOfDay(date)) / 86400000));
   if (days === 0) return "сьогодні";
   if (days === 1) return "учора";
   return `${countLabel(days, "день", "дні", "днів")} тому`;
