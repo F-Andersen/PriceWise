@@ -1,13 +1,11 @@
 /**
- * Manual price collection run: promotions first (they bring new products), then
- * every catalogue product is looked up by barcode in each store. The API also runs
- * this on a schedule (see priceScheduler.ts); both share one lock.
+ * Manual price collection run. Walks each chain's food categories; the API also runs
+ * this on a schedule (see priceScheduler.ts) and both share one lock.
  *
- *   npm run monitor:prices                     full run
- *   npm run monitor:prices -- --dry-run        fetch and parse, write nothing
- *   npm run monitor:prices -- --limit=5        only the first 5 products
+ *   npm run monitor:prices                               full run (about an hour)
+ *   npm run monitor:prices -- --dry-run                  fetch and parse, write nothing
  *   npm run monitor:prices -- --stores=Novus,METRO
- *   npm run monitor:prices -- --promo-limit=20 --skip-promotions --verbose
+ *   npm run monitor:prices -- --categories=bakery --max-pages=2 --verbose
  */
 import "dotenv/config";
 import { prisma } from "../../prisma";
@@ -25,19 +23,14 @@ const numberArg = (name: string) => {
 
 async function main() {
   const dryRun = flag("dry-run");
-  const { promotions, collectedAt, rows, summary, freshMerges, prunedRows } = await runPriceCollection({
+  const { collectedAt, rows, summary, freshMerges, prunedRows } = await runPriceCollection({
     dryRun,
-    limit: numberArg("limit"),
     storeNames: arg("stores")?.split(",").map((name) => name.trim()),
-    promoLimit: numberArg("promo-limit"),
-    skipPromotions: flag("skip-promotions")
+    categories: arg("categories")?.split(",").map((name) => name.trim()),
+    maxPages: numberArg("max-pages")
   });
 
-  if (promotions.length) {
-    console.log("Promotions");
-    console.table(promotions);
-  }
-  console.log(`Catalogue by barcode${dryRun ? " (dry run, nothing written)" : ""}, collected at ${collectedAt.toISOString()}`);
+  console.log(`Catalogue from category pages${dryRun ? " (dry run, nothing written)" : ""}, collected at ${collectedAt.toISOString()}`);
   if (flag("verbose")) console.table(rows);
   else console.table(rows.filter((row) => row.status === "error" || row.status === "marked_unavailable" || row.status === "unconfirmed"));
   console.table(summary);

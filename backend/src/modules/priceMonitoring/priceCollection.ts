@@ -4,13 +4,10 @@ import { prisma } from "../../prisma";
 import { summarizeRun } from "./collectionLog";
 import { mergeFreshProduce } from "./freshProduceMatching";
 import { pruneOldPriceHistory } from "./priceHistory";
-import { syncPromotionPages } from "./promotionPageSync";
 import { syncZakazCatalog, type CatalogSyncOptions } from "./zakazCatalogSync";
 import { collectedStoresWhere } from "./zakazStores";
 
 export type PriceCollectionOptions = CatalogSyncOptions & {
-  promoLimit?: number;
-  skipPromotions?: boolean;
 };
 
 /**
@@ -90,19 +87,18 @@ export async function runPriceCollection(options: PriceCollectionOptions = {}, t
     });
   }
   try {
-    const promotions = options.skipPromotions || dryRun ? [] : await syncPromotionPages(options.promoLimit ?? 12);
     const catalogue = await syncZakazCatalog(options);
     // Weighed produce has no shared barcode: merge it across stores by name.
     const freshMerges = dryRun ? [] : (await mergeFreshProduce()).filter((group) => group.status === "merged");
     const prunedRows = dryRun ? 0 : await pruneOldPriceHistory(historyRetentionDays());
     const finishedId = runId;
     if (finishedId) {
-      const run = summarizeRun(catalogue.rows, promotions);
+      const run = summarizeRun(catalogue.rows);
       await logSafely(() =>
         prisma.collectionRun.update({ where: { id: finishedId }, data: { ...run, stores: catalogue.summary, finishedAt: new Date() } })
       );
     }
-    return { promotions, ...catalogue, freshMerges, prunedRows };
+    return { ...catalogue, freshMerges, prunedRows };
   } catch (error) {
     const failedId = runId;
     if (failedId) {

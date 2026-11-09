@@ -1,5 +1,5 @@
 import { NativeModules, Platform } from "react-native";
-import { Alternative, BasketComparison, CatalogSummary, MarketPrice, ProductPage, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
+import { Alternative, BasketComparison, CatalogSummary, MarketPrice, OfferPage, ProductPage, Recommendation, Offer, Product, Recipe, ShoppingList, Store } from "../types";
 
 const FALLBACK_LAN_HOST = "192.168.0.221";
 
@@ -115,7 +115,10 @@ export const api = {
   stores: () => request<Store[]>(withStores("/stores")),
   /** Усі мережі, зокрема вимкнені: для екрана вибору. */
   allStores: () => request<Store[]>("/stores"),
-  offers: (storeId?: string) => request<Offer[]>(withStores(`/offers${storeId ? `?storeId=${encodeURIComponent(storeId)}` : ""}`)),
+  offers: ({ storeId, page, limit }: { storeId?: string; page?: number; limit?: number } = {}) => {
+    const parts = [storeId ? `storeId=${encodeURIComponent(storeId)}` : "", page ? `page=${page}` : "", limit ? `limit=${limit}` : ""].filter(Boolean);
+    return request<OfferPage>(withStores(`/offers${parts.length ? `?${parts.join("&")}` : ""}`));
+  },
   lists: () => request<ShoppingList[]>("/shopping-lists"),
   createList: (title: string) => request<ShoppingList>("/shopping-lists", { method: "POST", body: JSON.stringify({ title }) }),
   list: (id: string) => request<ShoppingList>(withStores(`/shopping-lists/${id}`)),

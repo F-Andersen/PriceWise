@@ -1,32 +1,31 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfferCard } from "../components/OfferCard";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { Chip, ChipRow, contentWidth, ErrorState, FreshnessNotice, PageTitle, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
-import { Offer, Store } from "../types";
-import { checkedAt } from "../utils/prices";
+import { OfferPage, Store } from "../types";
 import { colors, spacing } from "../utils/theme";
 
 export function OffersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const addToCart = useAddToCart();
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [allOffers, setAllOffers] = useState<Offer[]>([]);
+  const [page, setPage] = useState<OfferPage | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(() => {
-    Promise.all([api.offers(selectedStoreId), api.offers(), api.stores()])
-      .then(([nextOffers, everyOffer, nextStores]) => {
-        setOffers(nextOffers);
-        setAllOffers(everyOffer);
+    Promise.all([api.offers({ storeId: selectedStoreId }), api.stores()])
+      .then(([nextPage, nextStores]) => {
+        setPage(nextPage);
         setStores(nextStores);
         setStatus("ready");
       })
@@ -35,12 +34,21 @@ export function OffersScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const grouped = useMemo(
-    () => stores.map((store) => ({ store, count: allOffers.filter((offer) => offer.store.id === store.id).length })),
-    [allOffers, stores]
-  );
+  const grouped = stores.map((store) => ({ store, count: page?.stores.find((item) => item.storeId === store.id)?.count ?? 0 }));
+  const offers = page?.items ?? [];
 
-  const newest = allOffers.reduce<string | null>((latest, offer) => (!latest || +new Date(checkedAt(offer)) > +new Date(latest) ? checkedAt(offer) : latest), null);
+  async function loadMore() {
+    if (!page || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await api.offers({ storeId: selectedStoreId, page: page.page + 1 });
+      setPage({ ...next, items: [...page.items, ...next.items] });
+    } catch {
+      // Кнопка лишається: можна спробувати ще раз.
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <FlatList
@@ -54,7 +62,7 @@ export function OffersScreen() {
           <PageTitle title="Акції магазинів" subtitle="Пропозиції, які були чинними на дату збору" />
           {status === "ready" ? (
             <>
-              <FreshnessNotice collectedAt={newest} detail="Акція могла вже закінчитися. Перевірте її на сайті чи в магазині." />
+              <FreshnessNotice collectedAt={page?.latestCheckedAt ?? null} detail="Акція могла вже закінчитися. Перевірте її на сайті чи в магазині." />
               <View style={styles.filters}>
                 <ChipRow>
                   <Chip label="Усі" active={!selectedStoreId} onPress={() => setSelectedStoreId(undefined)} />
@@ -74,6 +82,13 @@ export function OffersScreen() {
           <OfferCard layout="list" offer={item} onPress={() => navigation.navigate("ProductDetails", { productId: item.product.id })} onAdd={() => addToCart(item.product)} />
         </View>
       )}
+      ListFooterComponent={
+        status === "ready" && page?.hasMore ? (
+          <View style={[contentWidth, styles.more]}>
+            <PrimaryButton title={`Показати ще (${offers.length} із ${page.total})`} variant="secondary" loading={loadingMore} disabled={loadingMore} onPress={loadMore} />
+          </View>
+        ) : null
+      }
       ListEmptyComponent={
         status === "ready" ? (
           <View style={contentWidth}>
@@ -88,5 +103,6 @@ export function OffersScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  filters: { marginVertical: spacing.md }
+  filters: { marginVertical: spacing.md },
+  more: { marginTop: spacing.sm }
 });
