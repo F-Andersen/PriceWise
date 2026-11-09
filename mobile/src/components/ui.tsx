@@ -1,12 +1,15 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { ageLabel, formatDate, isStale } from "../utils/prices";
-import { colors, layout, radii, shadow, spacing, type } from "../utils/theme";
+import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
 import { Icon, IconName } from "./Icon";
 import { PrimaryButton } from "./PrimaryButton";
 
 /** Центрує вміст і обмежує ширину на широких екранах. */
 export const contentWidth: ViewStyle = { width: "100%", maxWidth: layout.maxContent, alignSelf: "center" };
+
+/** Ширша колонка для вітрин із товарами. */
+export const wideContent: ViewStyle = { width: "100%", maxWidth: layout.maxWide, alignSelf: "center" };
 
 export function PageTitle({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   return (
@@ -239,18 +242,18 @@ const styles = StyleSheet.create({
   pageTitle: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, marginBottom: spacing.lg },
   sectionHeader: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.md },
   sectionAction: { minHeight: layout.minTouch, justifyContent: "flex-end", paddingLeft: spacing.sm },
-  linkText: { ...type.small, color: colors.primary, fontWeight: "600" },
-  card: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
-  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.sm, maxWidth: "100%" },
+  linkText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
+  card: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
+  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, maxWidth: "100%" },
   chipRow: { flexGrow: 0, flexShrink: 0 },
   chipRowContent: { gap: spacing.sm, paddingVertical: 2 },
   chip: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.text, borderColor: colors.text },
-  chipText: { ...type.small, color: colors.textSoft, fontWeight: "500" },
-  chipTextActive: { color: colors.onPrimary, fontWeight: "600" },
+  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chipText: { ...type.small, color: colors.textSoft, fontFamily: fonts.medium },
+  chipTextActive: { color: colors.onPrimary, fontFamily: fonts.semibold },
   iconButton: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   iconButtonPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
-  imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
+  imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md },
   image: { width: "100%", height: "100%" },
   stepper: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
   stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 28, textAlign: "center" },
@@ -262,7 +265,7 @@ const styles = StyleSheet.create({
   stateBody: { textAlign: "center", color: colors.textSoft, marginTop: spacing.xs, maxWidth: 420 },
   stateAction: { marginTop: spacing.md, width: "100%", maxWidth: 320 },
   bone: { backgroundColor: colors.surfaceMuted, borderRadius: radii.sm },
-  skeletonRow: { flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border },
+  skeletonRow: { ...shadow, flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg },
   skeletonImage: { width: 76, height: 76 },
   skeletonLines: { flex: 1, gap: spacing.sm },
   skeletonLineLong: { height: 14, width: "85%" },

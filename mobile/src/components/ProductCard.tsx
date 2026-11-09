@@ -23,23 +23,30 @@ export function ProductCard({ product, onPress, onAdd }: Props) {
         onPress={onPress}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}
       >
-        <ProductImage uri={productImageForBestPrice(product)} size={76} />
-        <View style={styles.content}>
-          <Text style={type.bodyStrong} numberOfLines={2}>{product.name}</Text>
-          <Text style={[type.small, styles.meta]} numberOfLines={1}>{product.volume} · {product.category}</Text>
-          <Text style={[type.price, styles.price, minPrice === null && styles.noPrice]}>{priceText}</Text>
+        <ProductImage uri={productImageForBestPrice(product)} height={128} />
+        <Text style={[type.bodyStrong, styles.name]} numberOfLines={2}>{product.name}</Text>
+        <Text style={type.small} numberOfLines={1}>{product.volume}</Text>
+        <View style={styles.badge}>
           {stores === 0 ? (
             <Badge label="Даних немає" tone="caution" />
           ) : stores === 1 ? (
             <Badge label="Лише 1 магазин" tone="caution" />
           ) : (
-            <Badge label={`Дані з ${stores} магазинів`} />
+            <Badge label={countLabel(stores, "магазин", "магазини", "магазинів")} />
           )}
         </View>
       </Pressable>
+      {minPrice === null ? (
+        <Text style={[type.small, styles.price]} numberOfLines={1}>Немає ціни</Text>
+      ) : (
+        <Text style={[type.price, styles.price]} numberOfLines={1}>
+          {stores > 1 ? <Text style={styles.from}>від </Text> : null}
+          {formatPrice(minPrice)}
+        </Text>
+      )}
       {onAdd ? (
-        <View style={styles.addWrap}>
-          <IconButton icon="plus" tone="primary" label={`Додати в кошик: ${product.name}`} onPress={onAdd} />
+        <View style={styles.add}>
+          <IconButton icon="plus" tone="primary" size={44} label={`Додати в кошик: ${product.name}`} onPress={onAdd} />
         </View>
       ) : null}
     </View>
@@ -47,12 +54,12 @@ export function ProductCard({ product, onPress, onAdd }: Props) {
 }
 
 const styles = StyleSheet.create({
-  card: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
-  main: { flex: 1, minWidth: 0, flexDirection: "row", gap: spacing.md, padding: spacing.md },
+  card: { ...shadow, flex: 1, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, justifyContent: "space-between" },
+  main: { minWidth: 0 },
   pressed: { opacity: 0.75 },
-  content: { flex: 1, minWidth: 0 },
-  meta: { marginTop: 2 },
-  price: { marginTop: spacing.xs, marginBottom: spacing.xs },
-  noPrice: { ...type.bodyStrong, color: colors.muted },
-  addWrap: { justifyContent: "flex-end", paddingRight: spacing.md, paddingBottom: spacing.md }
+  name: { marginTop: spacing.sm, minHeight: 42 },
+  badge: { marginTop: spacing.sm },
+  price: { marginTop: spacing.sm },
+  from: { ...type.small, color: colors.muted },
+  add: { position: "absolute", top: spacing.sm, right: spacing.sm }
 });

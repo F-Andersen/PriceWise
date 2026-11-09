@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { api } from "../services/api";
 import { BasketPlan, BasketPlanResult } from "../types";
 import { countLabel, formatPrice } from "../utils/prices";
-import { colors, layout, spacing, type } from "../utils/theme";
+import { colors, layout, spacing, type, fonts } from "../utils/theme";
 import { Icon } from "./Icon";
 import { Badge, Card, Chip, ChipRow, ErrorState, SectionHeader, SkeletonList } from "./ui";
 
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   reason: { ...type.small, color: colors.textSoft },
   toggle: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.minTouch, alignSelf: "flex-start" },
-  toggleText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  toggleText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   stop: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: spacing.xs },
   line: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   lineName: { flex: 1, minWidth: 0 }

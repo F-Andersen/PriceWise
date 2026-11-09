@@ -1,36 +1,45 @@
 import { Platform, TextStyle } from "react-native";
 
 /**
- * Візуальна система PriceWise — «Чесний чек».
- * Семантичні кольори описують стан даних, а не магазин.
- * Усі пари текст/тло мають контраст щонайменше 4.5:1.
+ * Візуальна система PriceWise: тепле світле тло, глибокий чорнильно-зелений колір
+ * і стриманий золотий акцент. Семантичні кольори описують стан даних, а не магазин.
+ * Пари текст/тло мають контраст щонайменше 4.5:1; золотий лише декоративний.
  */
 export const colors = {
-  background: "#F5F6F3",
+  background: "#F6F3EC",
   surface: "#FFFFFF",
-  surfaceMuted: "#ECEEE9",
-  text: "#16211F",
-  textSoft: "#46524F",
-  muted: "#5C6865",
-  border: "#DDE1DA",
-  borderStrong: "#8A9490",
+  surfaceMuted: "#EFEBE1",
+  text: "#16211E",
+  textSoft: "#47524E",
+  muted: "#626B66",
+  border: "#E7E2D6",
+  borderStrong: "#8F968F",
 
-  primary: "#0B5C5A",
-  primaryDark: "#074240",
-  primarySoft: "#DCEDEB",
+  primary: "#123F3A",
+  primaryDark: "#0B2B28",
+  primarySoft: "#DFEBE6",
+
+  /** Темні панелі: головний блок, плаваюче меню. */
+  ink: "#0F2A27",
+  inkSoft: "#1C3D39",
+  onInk: "#F6F3EC",
+  onInkMuted: "#BCC9C2",
+
+  /** Лише декоративні деталі, не для тексту на світлому тлі. */
+  gold: "#C2A26A",
 
   // Неповні або застарілі дані
   caution: "#7A4E00",
-  cautionSoft: "#FBF0D9",
-  cautionBorder: "#E7CF9C",
+  cautionSoft: "#FAEFD9",
+  cautionBorder: "#E9D5AB",
 
   // Схожий, не ідентичний товар
   similar: "#3A4499",
-  similarSoft: "#E9EBFA",
+  similarSoft: "#EAEBF8",
 
   // Знижка від магазину
-  deal: "#96174F",
-  dealSoft: "#F9E7EF",
+  deal: "#8E1D4B",
+  dealSoft: "#F8E8EE",
 
   danger: "#A62B1F",
   dangerSoft: "#FBE9E6",
@@ -40,46 +49,47 @@ export const colors = {
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
-export const radii = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
+export const radii = { sm: 10, md: 14, lg: 20, xl: 28, pill: 999 };
 
 export const layout = {
-  /** Основна колонка на широкому екрані. */
+  /** Колонка для тексту й форм на широкому екрані. */
   maxContent: 760,
-  /** Ширина, від якої товари стають у дві колонки. */
-  twoColumns: 640,
+  /** Ширша колонка для вітрин із товарами. */
+  maxWide: 1120,
   /** Нижній відступ, щоб контент не ховався за панеллю вкладок. */
   tabBarInset: 96,
   minTouch: 44
 };
 
-export const shadow = Platform.select({
-  web: { boxShadow: "0 1px 2px rgba(22,33,31,0.06)" } as object,
-  default: {
-    shadowColor: "#16211F",
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1
-  }
-}) as object;
+function makeShadow(y: number, blur: number, opacity: number, elevation: number) {
+  return Platform.select({
+    web: { boxShadow: `0 ${y}px ${blur}px rgba(15,42,39,${opacity})` } as object,
+    default: { shadowColor: "#0F2A27", shadowOpacity: opacity, shadowRadius: blur / 2, shadowOffset: { width: 0, height: y }, elevation }
+  }) as object;
+}
 
-const fontFamily = Platform.select({
-  web: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-  default: undefined
-});
+export const shadow = makeShadow(6, 20, 0.06, 2);
+export const shadowRaised = makeShadow(14, 36, 0.14, 8);
 
-const base: TextStyle = fontFamily ? { fontFamily } : {};
+export const fonts = {
+  regular: "Manrope_400Regular",
+  medium: "Manrope_500Medium",
+  semibold: "Manrope_600SemiBold",
+  bold: "Manrope_700Bold",
+  extrabold: "Manrope_800ExtraBold"
+};
+
 const numeric: TextStyle = { fontVariant: ["tabular-nums"] };
 
 export const type = {
-  display: { ...base, fontSize: 28, lineHeight: 34, fontWeight: "700", color: colors.text, letterSpacing: -0.3 } as TextStyle,
-  title: { ...base, fontSize: 20, lineHeight: 26, fontWeight: "700", color: colors.text } as TextStyle,
-  heading: { ...base, fontSize: 16, lineHeight: 22, fontWeight: "600", color: colors.text } as TextStyle,
-  body: { ...base, fontSize: 15, lineHeight: 22, fontWeight: "400", color: colors.text } as TextStyle,
-  bodyStrong: { ...base, fontSize: 15, lineHeight: 21, fontWeight: "600", color: colors.text } as TextStyle,
-  small: { ...base, fontSize: 13, lineHeight: 18, fontWeight: "400", color: colors.muted } as TextStyle,
-  label: { ...base, fontSize: 12, lineHeight: 16, fontWeight: "600", color: colors.muted } as TextStyle,
-  price: { ...base, ...numeric, fontSize: 18, lineHeight: 24, fontWeight: "700", color: colors.text } as TextStyle,
-  priceLarge: { ...base, ...numeric, fontSize: 28, lineHeight: 34, fontWeight: "700", color: colors.text } as TextStyle,
+  display: { fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.6 } as TextStyle,
+  title: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 27, color: colors.text, letterSpacing: -0.3 } as TextStyle,
+  heading: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text, letterSpacing: -0.1 } as TextStyle,
+  body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 23, color: colors.text } as TextStyle,
+  bodyStrong: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21, color: colors.text } as TextStyle,
+  small: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.muted } as TextStyle,
+  label: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.muted } as TextStyle,
+  price: { ...numeric, fontFamily: fonts.extrabold, fontSize: 18, lineHeight: 24, color: colors.text, letterSpacing: -0.2 } as TextStyle,
+  priceLarge: { ...numeric, fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.6 } as TextStyle,
   numeric
 };
