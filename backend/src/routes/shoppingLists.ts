@@ -4,7 +4,7 @@ import { AuthRequest, requireAuth } from "../middleware/auth";
 import { prisma } from "../prisma";
 import { parseExcludedStores } from "../utils/storeFilter";
 import { selectedStoresWhere } from "../modules/priceMonitoring/zakazStores";
-import { compareShoppingList } from "../services/comparisonService";
+import { compareShoppingList, planShoppingList } from "../services/comparisonService";
 import { getShoppingListRecommendations } from "../services/recommendationService";
 
 const router = Router();
@@ -64,6 +64,13 @@ router.delete("/:id/items/:itemId", async (req: AuthRequest, res) => {
 router.get("/:id/compare", async (req: AuthRequest, res) => {
   await assertOwnsList(req.params.id, req.userId!);
   res.json(await compareShoppingList(req.params.id, parseExcludedStores(req.query.excludeStores)));
+});
+
+router.get("/:id/plan", async (req: AuthRequest, res) => {
+  await assertOwnsList(req.params.id, req.userId!);
+  const cost = Number(req.query.extraStoreCost);
+  const extraStoreCost = Number.isFinite(cost) && cost >= 0 ? Math.min(cost, 1000) : 0;
+  res.json(await planShoppingList(req.params.id, parseExcludedStores(req.query.excludeStores), extraStoreCost));
 });
 
 router.get("/:id/recommendations", async (req: AuthRequest, res) => {

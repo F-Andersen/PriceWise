@@ -194,6 +194,52 @@ export type OfferPage = {
   latestCheckedAt: string | null;
 };
 
+export type PlanItem = { productId: string; productName: string; quantity: number; unitPrice: number; lineTotal: number; hasDiscount: boolean };
+
+export type BasketPlan = {
+  storeCount: number;
+  stops: Array<{ store: Store; items: PlanItem[]; total: number }>;
+  total: number;
+  coveredCount: number;
+  missing: Array<{ productId: string; productName: string }>;
+  /** Економія проти одного магазину; null, якщо той купує менше товарів. */
+  savingVsOneStore: number | null;
+  isRecommended: boolean;
+  explanation: string[];
+};
+
+export type BasketPlanResult = {
+  itemCount: number;
+  extraStoreCost: number;
+  plans: BasketPlan[];
+  summary: string | null;
+};
+
+export type PriceSignal = "good" | "normal" | "high" | "insufficient";
+
+export type StoreAnalysis = {
+  store: { id: string; name: string };
+  current: number;
+  hasDiscount: boolean;
+  observedDays: number;
+  changes: number;
+  min: number;
+  max: number;
+  average: number;
+  promoShare: number;
+  cheaperThanShare: number;
+  signal: PriceSignal;
+};
+
+export type ProductAnalysis = {
+  signal: PriceSignal;
+  reference: StoreAnalysis | null;
+  stores: StoreAnalysis[];
+  windowDays: number;
+  minObservedDays: number;
+  reasons: string[];
+};
+
 export type MarketPrice = Price & {
   product: Product;
   matchType: "exact" | "similar";
