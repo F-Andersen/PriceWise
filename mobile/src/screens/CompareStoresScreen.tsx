@@ -9,7 +9,7 @@ import { api } from "../services/api";
 import { useStores } from "../services/StoresContext";
 import { BasketComparison, BasketVerdict, ComparisonResult, MissingItem, Recommendation } from "../types";
 import { countLabel, formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
-import { colors, layout, radii, spacing, type } from "../utils/theme";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 
 function Coverage({ found, total }: { found: number; total: number }) {
   const complete = found === total;
@@ -249,13 +249,13 @@ const styles = StyleSheet.create({
   lines: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: spacing.sm },
   line: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md },
   lineName: { flex: 1, minWidth: 0, color: colors.textSoft },
-  lineValue: { ...type.small, ...type.numeric, color: colors.text, fontWeight: "500" },
+  lineValue: { ...type.small, ...type.numeric, color: colors.text, fontFamily: fonts.medium },
   missing: { color: colors.caution },
-  missingValue: { ...type.small, color: colors.caution, fontWeight: "600" },
+  missingValue: { ...type.small, color: colors.caution, fontFamily: fonts.semibold },
   missingSummary: { ...type.small, color: colors.caution },
   partialSum: { ...type.small, color: colors.textSoft },
   toggle: { flexDirection: "row", alignItems: "center", gap: spacing.xs, minHeight: layout.minTouch, alignSelf: "flex-start" },
-  toggleText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  toggleText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   tip: { gap: spacing.xs, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   tipText: { color: colors.textSoft }
 });
