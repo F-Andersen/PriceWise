@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   summaryAverage: { alignItems: "flex-end" },
   summaryBasis: { ...type.small, marginTop: spacing.xs, marginBottom: spacing.md },
   listCard: { paddingVertical: 0 },
-  similarCard: { marginTop: spacing.sm, borderColor: colors.similarSoft, borderWidth: 2 },
+  similarCard: { marginTop: spacing.sm, borderColor: colors.borderStrong },
   chartCard: { padding: spacing.lg, borderRadius: radii.lg },
   priceRow: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },

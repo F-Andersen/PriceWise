@@ -1,56 +1,43 @@
-import { Platform, TextStyle } from "react-native";
+import { TextStyle } from "react-native";
 
 /**
- * Візуальна система PriceWise: біле тло, тонкі лінії замість тіней і чорний текст, тож
- * колір лишається за товарами й цінами. Темно-зелений — єдиний акцент інтерфейсу.
- * Семантичні кольори описують стан даних, а не магазин.
- * Пари текст/тло мають контраст щонайменше 4.5:1; золотий лише декоративний.
+ * Візуальна система PriceWise: біле тло, чорний текст і нейтральні сірі без відтінку.
+ * Колір лише там, де він щось означає, і завжди суцільний: червоний — знижка,
+ * зелений — найкраща ціна. Пари текст/тло мають контраст щонайменше 4.5:1.
  */
 export const colors = {
   background: "#FFFFFF",
   surface: "#FFFFFF",
-  surfaceMuted: "#F3F4F2",
-  text: "#111513",
-  textSoft: "#3F4744",
-  muted: "#5F6663",
-  border: "#E6E8E5",
-  borderStrong: "#8F968F",
+  surfaceMuted: "#F2F2F2",
+  text: "#1A1A1A",
+  textSoft: "#444444",
+  muted: "#6B6B6B",
+  border: "#E2E2E2",
+  borderStrong: "#8C8C8C",
 
-  primary: "#123F3A",
-  primaryDark: "#0B2B28",
-  primarySoft: "#E4EFEA",
+  primary: "#1A1A1A",
+  primaryDark: "#000000",
 
-  /** Темні панелі: головний блок, плаваюче меню. */
-  ink: "#0F2A27",
-  inkSoft: "#1C3D39",
-  onInk: "#F6F3EC",
-  onInkMuted: "#BCC9C2",
-
-  /** Лише декоративні деталі, не для тексту на світлому тлі. */
-  gold: "#C2A26A",
+  // Найнижча ціна, рекомендація
+  positive: "#1B7A3D",
 
   // Неповні або застарілі дані
-  caution: "#7A4E00",
-  cautionSoft: "#FAEFD9",
-  cautionBorder: "#E9D5AB",
+  caution: "#8A5200",
 
   // Схожий, не ідентичний товар
-  similar: "#3A4499",
-  similarSoft: "#EAEBF8",
+  similar: "#2B5C8F",
 
   // Знижка від магазину
-  deal: "#8E1D4B",
-  dealSoft: "#F8E8EE",
+  deal: "#C8102E",
 
-  danger: "#A62B1F",
-  dangerSoft: "#FBE9E6",
+  danger: "#B3261E",
 
   onPrimary: "#FFFFFF"
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
-export const radii = { sm: 8, md: 10, lg: 14, xl: 20, pill: 999 };
+export const radii = { xs: 4, sm: 6, md: 8, lg: 10, xl: 12, pill: 999 };
 
 export const layout = {
   /** Колонка для тексту й форм на широкому екрані. */
@@ -62,17 +49,8 @@ export const layout = {
   minTouch: 44
 };
 
-function makeShadow(y: number, blur: number, opacity: number, elevation: number) {
-  return Platform.select({
-    web: { boxShadow: `0 ${y}px ${blur}px rgba(15,42,39,${opacity})` } as object,
-    default: { shadowColor: "#0F2A27", shadowOpacity: opacity, shadowRadius: blur / 2, shadowOffset: { width: 0, height: y }, elevation }
-  }) as object;
-}
-
 /** Межа звичайної картки: на білому тлі її відділяє лінія, а не тінь. */
 export const outlined = { borderWidth: 1, borderColor: colors.border };
-/** Лише для того, що плаває над вмістом: меню, підсумок кошика. */
-export const shadowRaised = makeShadow(14, 36, 0.14, 8);
 
 export const fonts = {
   regular: "Manrope_400Regular",
@@ -85,14 +63,14 @@ export const fonts = {
 const numeric: TextStyle = { fontVariant: ["tabular-nums"] };
 
 export const type = {
-  display: { fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.6 } as TextStyle,
-  title: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 27, color: colors.text, letterSpacing: -0.3 } as TextStyle,
-  heading: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text, letterSpacing: -0.1 } as TextStyle,
+  display: { fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
+  title: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 27, color: colors.text } as TextStyle,
+  heading: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text } as TextStyle,
   body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 23, color: colors.text } as TextStyle,
   bodyStrong: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21, color: colors.text } as TextStyle,
   small: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.muted } as TextStyle,
   label: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.muted } as TextStyle,
-  price: { ...numeric, fontFamily: fonts.extrabold, fontSize: 18, lineHeight: 24, color: colors.text, letterSpacing: -0.2 } as TextStyle,
-  priceLarge: { ...numeric, fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.6 } as TextStyle,
+  price: { ...numeric, fontFamily: fonts.extrabold, fontSize: 18, lineHeight: 24, color: colors.text } as TextStyle,
+  priceLarge: { ...numeric, fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
   numeric
 };

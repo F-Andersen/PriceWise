@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Product } from "../types";
 import { countLabel, formatPrice, minProductPrice, productImageForBestPrice, storeCount } from "../utils/prices";
 import { productTitle, unitPriceLabel, volumeLabel } from "../utils/productText";
-import { colors, fonts, spacing, type } from "../utils/theme";
+import { colors, fonts, radii, spacing, type } from "../utils/theme";
 import { IconButton, ProductImage } from "./ui";
 
 type Props = {
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   card: { flex: 1, backgroundColor: colors.surface, padding: spacing.md },
   main: { flex: 1, minWidth: 0, justifyContent: "space-between" },
   pressed: { opacity: 0.7 },
-  volumeTag: { position: "absolute", left: 0, bottom: 0, maxWidth: "100%", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: colors.text },
+  volumeTag: { position: "absolute", left: 0, bottom: 0, maxWidth: "100%", paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs, backgroundColor: colors.text },
   volumeText: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 15, color: colors.onPrimary },
   brand: { marginTop: spacing.sm, fontFamily: fonts.extrabold, fontSize: 14, lineHeight: 19, color: colors.text },
   name: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.textSoft },

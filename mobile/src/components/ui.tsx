@@ -47,10 +47,10 @@ type Tone = "neutral" | "caution" | "similar" | "deal" | "primary";
 
 const toneStyles: Record<Tone, { bg: string; fg: string }> = {
   neutral: { bg: colors.surfaceMuted, fg: colors.textSoft },
-  caution: { bg: colors.cautionSoft, fg: colors.caution },
-  similar: { bg: colors.similarSoft, fg: colors.similar },
-  deal: { bg: colors.dealSoft, fg: colors.deal },
-  primary: { bg: colors.primarySoft, fg: colors.primaryDark }
+  caution: { bg: colors.surfaceMuted, fg: colors.caution },
+  similar: { bg: colors.surfaceMuted, fg: colors.similar },
+  deal: { bg: colors.deal, fg: colors.onPrimary },
+  primary: { bg: colors.positive, fg: colors.onPrimary }
 };
 
 export function Badge({ label, tone = "neutral", icon }: { label: string; tone?: Tone; icon?: IconName }) {
@@ -98,7 +98,7 @@ export function IconButton({ icon, label, onPress, disabled, tone = "neutral", s
       onPress={onPress}
       style={({ pressed }) => [
         styles.iconButton,
-        { width: size, height: size, borderRadius: size / 2 },
+        { width: size, height: size, borderRadius: radii.sm },
         isPrimary && styles.iconButtonPrimary,
         tone === "ghost" && styles.iconButtonGhost,
         pressed && !disabled && styles.pressed
@@ -246,11 +246,11 @@ const styles = StyleSheet.create({
   sectionAction: { minHeight: layout.minTouch, justifyContent: "flex-end", paddingLeft: spacing.sm },
   linkText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   card: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
-  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, maxWidth: "100%" },
+  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.xs, maxWidth: "100%" },
   chipRow: { flexGrow: 0, flexShrink: 0, marginHorizontal: -spacing.lg },
   chipRowContent: { gap: spacing.sm, paddingVertical: 2, paddingHorizontal: spacing.lg },
-  chip: { minHeight: 38, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  chip: { minHeight: 38, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radii.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chipActive: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { ...type.small, color: colors.textSoft, fontFamily: fonts.medium },
   chipTextActive: { color: colors.onPrimary, fontFamily: fonts.semibold },
   iconButton: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
@@ -258,13 +258,13 @@ const styles = StyleSheet.create({
   iconButtonGhost: { backgroundColor: "transparent", borderColor: "transparent" },
   imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md },
   image: { width: "100%", height: "100%" },
-  stepper: { flexDirection: "row", alignItems: "center", padding: 2, backgroundColor: colors.surfaceMuted, borderRadius: radii.pill },
+  stepper: { flexDirection: "row", alignItems: "center", padding: 2, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
   stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 24, textAlign: "center" },
   notice: { flexDirection: "row", gap: spacing.sm, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radii.md },
   noticeTitle: { ...type.small, fontFamily: fonts.semibold },
   priceDate: { flexDirection: "row", alignItems: "center", gap: 4 },
   state: { alignItems: "center", paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
-  stateIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft, marginBottom: spacing.md },
+  stateIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted, marginBottom: spacing.md },
   stateText: { textAlign: "center" },
   stateBody: { textAlign: "center", color: colors.textSoft, marginTop: spacing.xs, maxWidth: 420 },
   stateAction: { marginTop: spacing.md, width: "100%", maxWidth: 320 },

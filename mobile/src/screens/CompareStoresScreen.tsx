@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   freshness: { marginTop: spacing.md },
   verdict: { gap: spacing.xs },
-  verdictCaution: { borderColor: colors.cautionBorder, backgroundColor: colors.cautionSoft },
+  verdictCaution: { borderColor: colors.caution, backgroundColor: colors.surfaceMuted },
   verdictTitle: { marginBottom: 2 },
   card: { marginBottom: spacing.md, gap: spacing.sm },
   cardLowest: { borderColor: colors.primary, borderWidth: 2 },

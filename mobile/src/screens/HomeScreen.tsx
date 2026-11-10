@@ -12,7 +12,7 @@ import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { CatalogSummary, Offer, Product, ProductPage, Store } from "../types";
 import { ageLabel, formatDate, formatPrice, isStale, minProductPrice, plural } from "../utils/prices";
-import { colors, fonts, radii, outlined, shadowRaised, spacing, type } from "../utils/theme";
+import { colors, fonts, radii, outlined, spacing, type } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function HomeScreen() {
@@ -58,7 +58,6 @@ export function HomeScreen() {
       <View style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}>
         <View style={wideContent}>
           <View style={styles.brandRow}>
-            <View style={styles.brandDot} />
             <Text style={styles.brand}>PriceWise</Text>
           </View>
           <Text accessibilityRole="header" style={styles.heroTitle}>Що шукаємо сьогодні?</Text>
@@ -170,18 +169,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.xxl },
   pressed: { opacity: 0.8 },
-  hero: { backgroundColor: colors.ink, paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, borderBottomLeftRadius: radii.xl, borderBottomRightRadius: radii.xl },
+  hero: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  brandDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gold },
-  brand: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.onInk, letterSpacing: 0.2 },
-  heroTitle: { ...type.display, color: colors.onInk, marginTop: spacing.md, marginBottom: spacing.lg },
-  searchBar: { ...shadowRaised, flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 56, paddingHorizontal: spacing.lg, backgroundColor: colors.surface, borderRadius: radii.pill },
+  brand: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.text },
+  heroTitle: { ...type.display, marginTop: spacing.sm, marginBottom: spacing.md },
+  searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
   searchPlaceholder: { ...type.body, flex: 1, color: colors.muted },
   stats: { flexDirection: "row", alignItems: "stretch", marginTop: spacing.lg },
   stat: { flex: 1, minWidth: 0 },
-  statDivider: { width: 1, backgroundColor: colors.inkSoft, marginHorizontal: spacing.md },
-  statValue: { ...type.numeric, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.onInk },
-  statLabel: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.onInkMuted },
+  statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.md },
+  statValue: { ...type.numeric, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text },
+  statLabel: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.muted },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   disclaimer: { ...type.small },
   railScroll: { marginHorizontal: -spacing.lg, marginBottom: -spacing.md },
