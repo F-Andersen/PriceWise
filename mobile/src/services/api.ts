@@ -66,6 +66,12 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   onUnauthorized = handler;
 }
 
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("Сесія завершилась. Увійдіть знову.");
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -75,11 +81,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...(options.headers || {})
     }
   });
-  if (response.status === 401 && authToken && !path.startsWith("/auth/")) {
-    // The saved session is no longer valid: drop it so the app shows the login screen
-    // instead of screens that silently fail.
+  if (response.status === 401 && authToken && (!path.startsWith("/auth/") || path === "/auth/change-password")) {
+    // The saved session is no longer valid: forget it, so the next cart action asks to sign in.
     onUnauthorized?.();
-    throw new Error("Сесія завершилась. Увійдіть знову.");
+    throw new SessionExpiredError();
   }
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: "API request failed" }));
@@ -106,6 +111,9 @@ function catalogQuery({ query, category, page, limit, ids, sort }: CatalogOption
 export const api = {
   register: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/register", { method: "POST", body: JSON.stringify({ email, password }) }),
   login: (email: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+  changePassword: (currentPassword: string, newPassword: string) => request<{ token: string }>("/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }),
+  forgotPassword: (email: string) => request<{ ok: boolean }>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (email: string, code: string, password: string) => request<{ token: string; user: { id: string; email: string } }>("/auth/reset-password", { method: "POST", body: JSON.stringify({ email, code, password }) }),
   products: (options: CatalogOptions = {}) => request<ProductPage>(withStores(`/products${catalogQuery(options)}`)),
   productsByIds: (ids: string[]) => request<ProductPage>(withStores(`/products${catalogQuery({ ids, limit: 100 })}`)),
   catalogSummary: () => request<CatalogSummary>(withStores("/products/summary")),

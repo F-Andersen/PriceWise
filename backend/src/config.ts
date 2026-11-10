@@ -34,12 +34,22 @@ function adminEmails(): string[] {
   return (process.env.ADMIN_EMAILS ?? "").split(",").map((email) => email.trim().toLowerCase()).filter(Boolean);
 }
 
+/** SMTP for password reset codes. Null means mail is not set up. */
+function mail() {
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const password = process.env.SMTP_PASS?.trim();
+  if (!host || !user || !password) return null;
+  return { host, user, password, port: Number(process.env.SMTP_PORT || 587), from: process.env.MAIL_FROM?.trim() || user };
+}
+
 export const config = {
   isProduction,
   port: Number(process.env.PORT || 4001),
   jwtSecret: jwtSecret(),
   corsOrigins: corsOrigins(),
   adminEmails: adminEmails(),
+  mail: mail(),
   /** Behind Caddy/nginx: trust X-Forwarded-For from one proxy hop for client IPs. */
   trustProxy: process.env.TRUST_PROXY === "true" || isProduction
 };

@@ -6,7 +6,8 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../components/Toast";
 import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, ProductImage, SectionHeader, SkeletonList, Stepper } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { api } from "../services/api";
+import { api, SessionExpiredError } from "../services/api";
+import { useAuth } from "../services/AuthContext";
 import { Product, Recipe, RecipeItem } from "../types";
 import { countLabel, formatPrice, latestCollectedAt } from "../utils/prices";
 import { colors, radii, spacing, type, fonts } from "../utils/theme";
@@ -19,10 +20,13 @@ function amountLabel(item: RecipeItem) {
   return `${item.amount} ${item.unit}`;
 }
 
+const RECIPE_LOGIN_REASON = "Увійдіть, і продукти рецепта одразу з'являться у вашому кошику.";
+
 export function RecipeDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "RecipeDetails">>();
   const navigation = useNavigation();
   const toast = useToast();
+  const { withAuth } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [servings, setServings] = useState<number | undefined>();
   const [failed, setFailed] = useState(false);
@@ -53,14 +57,16 @@ export function RecipeDetailsScreen() {
       let list;
       try {
         list = await api.addRecipeToList(recipe.id, listId || undefined, recipe.guide.servings);
-      } catch {
+      } catch (error) {
+        if (error instanceof SessionExpiredError) throw error;
         await AsyncStorage.removeItem("activeListId");
         list = await api.addRecipeToList(recipe.id, undefined, recipe.guide.servings);
       }
       await AsyncStorage.setItem("activeListId", list.id);
       toast("Продукти рецепта додано в кошик", { actionLabel: "До кошика", onAction: () => navigation.navigate("Cart" as never) });
-    } catch {
-      toast("Не вдалося додати продукти. Спробуйте ще раз.", { kind: "error" });
+    } catch (error) {
+      if (error instanceof SessionExpiredError) void withAuth(addToCart, RECIPE_LOGIN_REASON);
+      else toast("Не вдалося додати продукти. Спробуйте ще раз.", { kind: "error" });
     } finally {
       setAdding(false);
     }
@@ -102,7 +108,7 @@ export function RecipeDetailsScreen() {
             Стільки буде в кошику: решта продуктів залишиться вам. Вагові товари рахуються за 1 кг.
             {cost.unpriced ? ` Не враховано продуктів без ціни: ${cost.unpriced}.` : ""}
           </Text>
-          <PrimaryButton title="Додати продукти в кошик" icon="basket" loading={adding} onPress={addToCart} />
+          <PrimaryButton title="Додати продукти в кошик" icon="basket" loading={adding} onPress={() => withAuth(addToCart, RECIPE_LOGIN_REASON)} />
         </Card>
         <FreshnessNotice collectedAt={latestCollectedAt(products)} />
 
