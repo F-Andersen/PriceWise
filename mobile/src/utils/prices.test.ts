@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Price, Product, Store } from "../types";
-import { activePrice, checkedAt, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
+import { activePrice, checkedAt, dailyLowestPrices, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
 
 const store = (id: string) => ({ id, name: id, city: "Київ" }) as Store;
 const DAY = 24 * 60 * 60 * 1000;
@@ -14,6 +14,20 @@ const price = (overrides: Partial<Price>): Price => ({
   isAvailable: true,
   store: store("s1"),
   ...overrides
+});
+
+describe("dailyLowestPrices", () => {
+  const row = (storeId: string, value: number, day: string) => price({ storeId, price: value, dateCollected: `2026-11-${day}T06:00:00.000Z` });
+
+  it("does not mix stores into a zigzag: a store keeps its price until it changes", () => {
+    const points = dailyLowestPrices([row("a", 40, "01"), row("b", 55, "02"), row("a", 42, "03")]);
+    assert.deepEqual(points.map((point) => point.price), [40, 40, 42]);
+  });
+
+  it("keeps only the last dates", () => {
+    const points = dailyLowestPrices([row("a", 40, "01"), row("a", 41, "02"), row("a", 42, "03")], 2);
+    assert.deepEqual(points.map((point) => point.date), ["2026-11-02", "2026-11-03"]);
+  });
 });
 
 describe("activePrice", () => {

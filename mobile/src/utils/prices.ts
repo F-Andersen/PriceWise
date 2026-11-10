@@ -23,6 +23,24 @@ export function activePrice(price: Price) {
   return numberPrice(price.price);
 }
 
+/**
+ * Найнижча ціна серед магазинів на кожну дату збору. Рядок цінової історії діє, доки
+ * магазин не змінить ціну, тому на кожну дату береться останній відомий рядок магазину.
+ */
+export function dailyLowestPrices(prices: Price[], limit = 8) {
+  const days = (price: Price) => price.dateCollected.slice(0, 10);
+  const dates = [...new Set(prices.map(days))].sort();
+  return dates.slice(-limit).map((date) => {
+    const latest = new Map<string, Price>();
+    for (const price of prices) {
+      if (days(price) > date) continue;
+      const known = latest.get(price.storeId);
+      if (!known || days(known) <= days(price)) latest.set(price.storeId, price);
+    }
+    return { date, price: Math.min(...[...latest.values()].map(activePrice)) };
+  });
+}
+
 /** «до 10.11» для дати кінця акції. */
 export function promoUntilLabel(value: string | Date) {
   const date = new Date(value);

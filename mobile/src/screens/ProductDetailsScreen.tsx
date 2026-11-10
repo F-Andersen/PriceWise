@@ -11,7 +11,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
-import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
+import { activePrice, checkedAt, dailyLowestPrices, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
 import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 
 function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
@@ -85,8 +85,12 @@ export function ProductDetailsScreen() {
   const isWeighedProduce = product.barcode.startsWith("fresh:");
   const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(checkedAt(price)) > +new Date(date) ? checkedAt(price) : date), null);
 
-  const history = (product.prices || []).slice(-8);
-  const distinctDates = new Set(history.map((price) => price.dateCollected.slice(0, 10))).size;
+  const history = dailyLowestPrices(product.prices || []);
+  const distinctDates = history.length;
+  const labelStep = Math.ceil(history.length / 4);
+  const historyPrices = history.map((point) => point.price);
+  // Without decimals a narrow price range repeats the same axis label.
+  const chartDecimals = history.length && Math.max(...historyPrices) - Math.min(...historyPrices) < 4 ? 1 : 0;
   const chartWidth = Math.min(width, layout.maxContent) - spacing.lg * 2 - spacing.lg * 2 - 2;
 
   return (
@@ -154,16 +158,29 @@ export function ProductDetailsScreen() {
           </>
         ) : null}
 
-        <SectionHeader title="Історія ціни" />
+        <SectionHeader title="Історія ціни" subtitle="Найнижча ціна серед магазинів на кожну дату" />
         {distinctDates >= 2 ? (
           <Card style={styles.chartCard}>
             <LineChart
-              data={{ labels: history.map((_, index) => String(index + 1)), datasets: [{ data: history.map(activePrice) }] }}
+              data={{ labels: history.map((point, index) => ((history.length - 1 - index) % labelStep === 0 ? `${point.date.slice(8)}.${point.date.slice(5, 7)}` : "")), datasets: [{ data: historyPrices }] }}
               width={chartWidth}
               height={190}
               yAxisSuffix=" ₴"
               withShadow={false}
-              chartConfig={{ backgroundGradientFrom: colors.surface, backgroundGradientTo: colors.surface, decimalPlaces: 0, color: () => colors.primary, labelColor: () => colors.muted }}
+              withVerticalLines={false}
+              withOuterLines={false}
+              segments={4}
+              chartConfig={{
+                backgroundGradientFrom: colors.surface,
+                backgroundGradientTo: colors.surface,
+                decimalPlaces: chartDecimals,
+                strokeWidth: 2.5,
+                color: () => colors.primary,
+                labelColor: () => colors.muted,
+                propsForLabels: { fontFamily: fonts.medium, fontSize: 11 },
+                propsForBackgroundLines: { stroke: colors.border, strokeDasharray: "" },
+                propsForDots: { r: "4", strokeWidth: "2", stroke: colors.surface }
+              }}
             />
           </Card>
         ) : (
