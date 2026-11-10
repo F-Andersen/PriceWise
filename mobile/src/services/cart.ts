@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api } from "./api";
+import { api, SessionExpiredError } from "./api";
 
 const ACTIVE_LIST_KEY = "activeListId";
 
@@ -16,7 +16,8 @@ export async function addToActiveList(productId: string, quantity = 1) {
   }
   try {
     await api.addItem(listId, productId, quantity);
-  } catch {
+  } catch (error) {
+    if (error instanceof SessionExpiredError) throw error;
     const list = await api.createList("Мій кошик");
     await AsyncStorage.setItem(ACTIVE_LIST_KEY, list.id);
     await api.addItem(list.id, productId, quantity);

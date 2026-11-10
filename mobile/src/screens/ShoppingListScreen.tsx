@@ -9,6 +9,7 @@ import { useToast } from "../components/Toast";
 import { Badge, contentWidth, ErrorState, IconButton, PageTitle, ProductImage, SkeletonList, StateView, Stepper } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
+import { useAuth } from "../services/AuthContext";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
 import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
@@ -17,6 +18,7 @@ export function ShoppingListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { token, sessionExpired, openAuth } = useAuth();
   const [list, setList] = useState<ShoppingList | null>(null);
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -67,7 +69,15 @@ export function ShoppingListScreen() {
       .catch(() => setStatus((current) => (current === "ready" ? current : "error")));
   }, [load]);
 
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  useFocusEffect(useCallback(() => {
+    if (token) {
+      refresh();
+    } else {
+      setList(null);
+      setLists([]);
+      setStatus("loading");
+    }
+  }, [refresh, token]));
 
   async function changeQuantity(item: ShoppingListItem, next: number) {
     if (!list || next < 1) return;
@@ -111,6 +121,25 @@ export function ShoppingListScreen() {
   const unpriced = items.length - priced.length;
   const estimate = priced.reduce((sum, item) => sum + (minProductPrice(item.product) || 0) * item.quantity, 0);
   const collectedAt = latestCollectedAt(items.map((item) => item.product));
+
+  if (!token) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+        <View style={[contentWidth, styles.guest]}>
+          <PageTitle title="Кошик" />
+          <StateView
+            icon="basket"
+            title={sessionExpired ? "Сесія завершилась" : "Кошик зберігається в акаунті"}
+            text={sessionExpired ? "Увійдіть знову, щоб побачити свої кошики." : "Увійдіть, щоб додавати товари й порівнювати вартість кошика в магазинах."}
+            actionLabel="Увійти"
+            onAction={openAuth}
+            secondaryLabel="Знайти товари"
+            onSecondary={() => navigation.navigate("Search" as never)}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
@@ -222,6 +251,7 @@ export function ShoppingListScreen() {
 }
 
 const styles = StyleSheet.create({
+  guest: { paddingHorizontal: spacing.lg },
   container: { flex: 1, backgroundColor: colors.background },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   pressed: { opacity: 0.75 },
