@@ -1,3 +1,4 @@
+import { syncRecipes } from "../../services/recipeService";
 import fs from "node:fs";
 import path from "node:path";
 import { prisma } from "../../prisma";
@@ -93,6 +94,7 @@ export async function runPriceCollection(options: PriceCollectionOptions = {}, t
     const freshMerges = dryRun ? [] : (await mergeFreshProduce()).filter((group) => group.status === "merged");
     // Only suggests pairs for review; a failure here must not lose the collected prices.
     if (!dryRun) await logSafely(refreshMatchCandidates);
+    if (!dryRun) await logSafely(syncRecipes);
     const prunedRows = dryRun ? 0 : await pruneOldPriceHistory(historyRetentionDays());
     const finishedId = runId;
     if (finishedId) {

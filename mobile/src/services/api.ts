@@ -130,7 +130,7 @@ export const api = {
   recommendations: (listId: string) => request<Recommendation[]>(withStores(`/shopping-lists/${listId}/recommendations`)),
   plan: (listId: string, extraStoreCost: number) => request<BasketPlanResult>(withStores(`/shopping-lists/${listId}/plan?extraStoreCost=${extraStoreCost}`)),
   productAnalytics: (id: string) => request<ProductAnalysis>(withStores(`/products/${id}/analytics`)),
-  recipes: () => request<Recipe[]>("/recipes"),
-  recipe: (id: string) => request<Recipe>(`/recipes/${id}`),
-  addRecipeToList: (recipeId: string, shoppingListId?: string) => request<ShoppingList>(`/recipes/${recipeId}/add-to-shopping-list`, { method: "POST", body: JSON.stringify({ shoppingListId }) })
+  recipes: () => request<Recipe[]>(withStores("/recipes")),
+  recipe: (id: string, servings?: number) => request<Recipe>(withStores(`/recipes/${id}${servings ? `?servings=${servings}` : ""}`)),
+  addRecipeToList: (recipeId: string, shoppingListId?: string, servings?: number) => request<ShoppingList>(`/recipes/${recipeId}/add-to-shopping-list`, { method: "POST", body: JSON.stringify({ shoppingListId, servings }) })
 };
