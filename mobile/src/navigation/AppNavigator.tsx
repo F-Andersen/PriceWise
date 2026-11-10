@@ -1,10 +1,11 @@
 import { BottomTabBarProps, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon, IconName } from "../components/Icon";
 import { useAuth } from "../services/AuthContext";
 import { AuthScreen } from "../screens/AuthScreen";
+import { ChangePasswordScreen } from "../screens/ChangePasswordScreen";
 import { CompareStoresScreen } from "../screens/CompareStoresScreen";
 import { HomeScreen } from "../screens/HomeScreen";
 import { OffersScreen } from "../screens/OffersScreen";
@@ -20,7 +21,7 @@ export type RootStackParamList = {
   Tabs: undefined;
   ProductDetails: { productId: string };
   RecipeDetails: { recipeId: string };
-  CompareStores: { listId: string };
+  ChangePassword: undefined; CompareStores: { listId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -93,12 +94,21 @@ function Tabs() {
   );
 }
 
+function AuthModal() {
+  const { authPrompt, closeAuth } = useAuth();
+  return (
+    <Modal visible={authPrompt !== null} animationType="slide" onRequestClose={closeAuth}>
+      <AuthScreen />
+    </Modal>
+  );
+}
+
 export function AppNavigator() {
-  const { token, isReady } = useAuth();
+  const { isReady } = useAuth();
   if (!isReady) return null;
-  if (!token) return <AuthScreen />;
 
   return (
+    <>
     <Stack.Navigator
       screenOptions={({ navigation }) => ({
         headerStyle: { backgroundColor: colors.background },
@@ -116,7 +126,10 @@ export function AppNavigator() {
       <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} options={{ title: "Картка товару" }} />
       <Stack.Screen name="RecipeDetails" component={RecipeDetailsScreen} options={{ title: "Рецепт" }} />
       <Stack.Screen name="CompareStores" component={CompareStoresScreen} options={{ title: "Порівняння магазинів" }} />
+      <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: "Зміна пароля" }} />
     </Stack.Navigator>
+    <AuthModal />
+    </>
   );
 }
 

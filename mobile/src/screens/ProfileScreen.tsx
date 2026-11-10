@@ -14,7 +14,7 @@ import { countLabel, formatDate } from "../utils/prices";
 import { colors, radii, spacing, type, shadow } from "../utils/theme";
 
 export function ProfileScreen() {
-  const { email, signOut } = useAuth();
+  const { email, openAuth, signOut, token } = useAuth();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [lists, setLists] = useState<ShoppingList[]>([]);
@@ -29,7 +29,14 @@ export function ProfileScreen() {
       .catch(() => setStatus((current) => (current === "ready" ? current : "error")));
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    if (token) {
+      load();
+    } else {
+      setLists([]);
+      setStatus("loading");
+    }
+  }, [load, token]));
 
   async function openList(list: ShoppingList) {
     await AsyncStorage.setItem("activeListId", list.id);
@@ -45,11 +52,18 @@ export function ProfileScreen() {
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={
         <View style={contentWidth}>
-          <PageTitle title="Профіль" subtitle={email ?? undefined} />
+          <PageTitle title="Профіль" subtitle={token ? email ?? undefined : undefined} />
+          {!token ? (
+            <StateView icon="user" title="Ви ще не увійшли" text="Каталог, акції та рецепти доступні без акаунта. Вхід потрібен, щоб зберігати кошики." actionLabel="Увійти або зареєструватися" onAction={openAuth} />
+          ) : null}
           <StorePicker />
-          <SectionHeader title="Збережені кошики" />
-          {status === "loading" ? <SkeletonList count={2} label="Завантаження кошиків" /> : null}
-          {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
+          {token ? (
+            <>
+              <SectionHeader title="Збережені кошики" />
+              {status === "loading" ? <SkeletonList count={2} label="Завантаження кошиків" /> : null}
+              {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
+            </>
+          ) : null}
         </View>
       }
       renderItem={({ item }) => (
@@ -64,16 +78,19 @@ export function ProfileScreen() {
         </View>
       )}
       ListEmptyComponent={
-        status === "ready" ? (
+        token && status === "ready" ? (
           <View style={contentWidth}>
             <StateView icon="basket" title="Кошиків ще немає" text="Перший кошик з'явиться, коли ви додасте товар." />
           </View>
         ) : null
       }
       ListFooterComponent={
-        <View style={[contentWidth, styles.footer]}>
-          <PrimaryButton title="Вийти" variant="secondary" onPress={signOut} />
-        </View>
+        token ? (
+          <View style={[contentWidth, styles.footer]}>
+            <PrimaryButton title="Змінити пароль" variant="secondary" onPress={() => navigation.navigate("ChangePassword" as never)} />
+            <PrimaryButton title="Вийти" variant="secondary" onPress={signOut} />
+          </View>
+        ) : null
       }
     />
   );
@@ -85,5 +102,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
   list: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
   listBody: { flex: 1, minWidth: 0 },
-  footer: { marginTop: spacing.lg }
+  footer: { marginTop: spacing.lg, gap: spacing.sm }
 });
