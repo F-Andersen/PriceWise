@@ -116,8 +116,8 @@ export const api = {
   stores: () => request<Store[]>(withStores("/stores")),
   /** Усі мережі, зокрема вимкнені: для екрана вибору. */
   allStores: () => request<Store[]>("/stores"),
-  offers: ({ storeId, page, limit }: { storeId?: string; page?: number; limit?: number } = {}) => {
-    const parts = [storeId ? `storeId=${encodeURIComponent(storeId)}` : "", page ? `page=${page}` : "", limit ? `limit=${limit}` : ""].filter(Boolean);
+  offers: ({ storeId, query, page, limit }: { storeId?: string; query?: string; page?: number; limit?: number } = {}) => {
+    const parts = [storeId ? `storeId=${encodeURIComponent(storeId)}` : "", query ? `query=${encodeURIComponent(query)}` : "", page ? `page=${page}` : "", limit ? `limit=${limit}` : ""].filter(Boolean);
     return request<OfferPage>(withStores(`/offers${parts.length ? `?${parts.join("&")}` : ""}`));
   },
   lists: () => request<ShoppingList[]>("/shopping-lists"),

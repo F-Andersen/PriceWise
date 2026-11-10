@@ -1,18 +1,18 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Icon } from "../components/Icon";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ProductGrid } from "../components/ProductGrid";
+import { SearchField } from "../components/SearchField";
 import { Chip, ChipRow, ErrorState, PageTitle, SkeletonList, StateView, wideContent } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { ProductPage } from "../types";
 import { countLabel } from "../utils/prices";
-import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
+import { colors, spacing, type } from "../utils/theme";
 
 export function ProductSearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -24,7 +24,6 @@ export function ProductSearchScreen() {
   const [category, setCategory] = useState("Усі");
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
-  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -73,25 +72,7 @@ export function ProductSearchScreen() {
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={wideContent}>
         <PageTitle title="Пошук товарів" />
-        <View style={[styles.searchBar, focused && styles.searchBarFocused]}>
-          <Icon name="search" size={20} color={colors.muted} />
-          <TextInput
-            accessibilityLabel="Пошук товарів"
-            value={query}
-            onChangeText={changeQuery}
-            placeholder="Назва, бренд або категорія"
-            placeholderTextColor={colors.muted}
-            returnKeyType="search"
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            style={styles.input}
-          />
-          {query ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Очистити пошук" onPress={() => changeQuery("")} style={styles.clear}>
-              <Text style={styles.clearText}>Очистити</Text>
-            </Pressable>
-          ) : null}
-        </View>
+        <SearchField label="Пошук товарів" placeholder="Назва, бренд або категорія" value={query} onChangeText={changeQuery} />
 
         {status !== "error" && categories.length > 1 ? (
           <ChipRow>
@@ -133,12 +114,6 @@ export function ProductSearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 56, paddingLeft: spacing.lg, paddingRight: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border },
-  searchBarFocused: { borderColor: colors.primary, borderWidth: 2 },
-  // Фокус показує рамка всього поля, а не вбудований контур браузера.
-  input: { ...type.body, flex: 1, minWidth: 0, minHeight: 48, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : {}) },
-  clear: { minHeight: layout.minTouch, justifyContent: "center", paddingHorizontal: spacing.sm },
-  clearText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   results: { marginTop: spacing.md },
   count: { ...type.small, marginBottom: spacing.sm },
   more: { marginTop: spacing.sm }
