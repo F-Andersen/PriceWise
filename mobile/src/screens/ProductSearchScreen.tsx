@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ProductGrid } from "../components/ProductGrid";
 import { SearchField } from "../components/SearchField";
-import { Chip, ChipRow, ErrorState, PageTitle, SkeletonList, StateView, wideContent } from "../components/ui";
+import { Chip, ChipRow, ErrorState, SkeletonList, StateView, wideContent } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
@@ -71,20 +71,23 @@ export function ProductSearchScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-      <View style={wideContent}>
-        <PageTitle title="Пошук товарів" />
-        <SearchField label="Пошук товарів" placeholder="Назва, бренд або категорія" value={query} onChangeText={changeQuery} />
+    <View style={styles.container}>
+      {/* Поле й категорії поза прокруткою: завжди під рукою, навіть далеко внизу каталогу. */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={wideContent}>
+          <SearchField label="Пошук товарів" placeholder="Назва, бренд або категорія" value={query} onChangeText={changeQuery} />
+          {status !== "error" && categories.length > 1 ? (
+            <ChipRow>
+              {categories.map((item) => (
+                <Chip key={item} label={item} active={item === category} onPress={() => setCategory(item)} />
+              ))}
+            </ChipRow>
+          ) : null}
+        </View>
+      </View>
 
-        {status !== "error" && categories.length > 1 ? (
-          <ChipRow>
-            {categories.map((item) => (
-              <Chip key={item} label={item} active={item === category} onPress={() => setCategory(item)} />
-            ))}
-          </ChipRow>
-        ) : null}
-
-        <View style={styles.results}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: tabInset }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <View style={wideContent}>
           {status === "loading" ? <SkeletonList label="Пошук товарів" /> : null}
           {status === "error" ? <ErrorState onRetry={retry} /> : null}
           {status === "ready" && products.length === 0 ? (
@@ -108,15 +111,15 @@ export function ProductSearchScreen() {
             </>
           ) : null}
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  results: { marginTop: spacing.md },
-  count: { ...type.small, marginBottom: spacing.sm },
-  more: { marginTop: spacing.sm }
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  count: { ...type.small, marginBottom: spacing.md },
+  more: { marginTop: spacing.lg }
 });
