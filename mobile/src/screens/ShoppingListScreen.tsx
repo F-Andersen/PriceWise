@@ -12,13 +12,14 @@ import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, layout, radii, outlined, shadowRaised, spacing, type, fonts } from "../utils/theme";
-import { useTabBarInset } from "../utils/useTabBarInset";
+import { colors, layout, radii, outlined, spacing, type, fonts } from "../utils/theme";
+import { useTabBarHeight, useTabBarInset } from "../utils/useTabBarInset";
 
 export function ShoppingListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const tabInset = useTabBarInset();
+  const tabBarHeight = useTabBarHeight();
   const toast = useToast();
   const { token, sessionExpired, openAuth } = useAuth();
   const [list, setList] = useState<ShoppingList | null>(null);
@@ -237,7 +238,7 @@ export function ShoppingListScreen() {
       />
 
       {status === "ready" && items.length > 0 ? (
-        <View style={[styles.footerWrap, { marginBottom: tabInset - spacing.xs }]}>
+        <View style={[styles.footerWrap, { marginBottom: tabBarHeight }]}>
           <View style={[contentWidth, styles.footer]}>
             <View style={styles.footerSummary}>
               <View style={styles.footerText}>
@@ -277,8 +278,8 @@ const styles = StyleSheet.create({
   itemPrice: { ...type.bodyStrong, ...type.numeric },
   itemPriceCol: { flex: 1, minWidth: 0 },
   itemActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
-  footerWrap: { paddingHorizontal: spacing.md },
-  footer: { ...shadowRaised, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md },
+  footerWrap: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  footer: { backgroundColor: colors.surface },
   footerSummary: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, marginBottom: spacing.sm },
   footerText: { flex: 1, minWidth: 0 },
   footerHint: { ...type.small, fontSize: 12 },
