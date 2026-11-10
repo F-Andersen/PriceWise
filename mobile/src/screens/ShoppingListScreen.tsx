@@ -6,13 +6,14 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../components/Toast";
-import { Badge, contentWidth, ErrorState, IconButton, PageTitle, ProductImage, SkeletonList, StateView, Stepper } from "../components/ui";
+import { Badge, contentWidth, ErrorState, IconButton, PageTitle, ProductImage, SkeletonList, StateView, Stepper, VolumeTag } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, layout, radii, outlined, spacing, type, fonts } from "../utils/theme";
+import { productTitle, volumeLabel } from "../utils/productText";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 import { useTabBarHeight, useTabBarInset } from "../utils/useTabBarInset";
 
 export function ShoppingListScreen() {
@@ -152,7 +153,7 @@ export function ShoppingListScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.listContent, !(status === "ready" && items.length > 0) && { paddingBottom: tabInset }]}
         ListHeaderComponent={
-          <View style={contentWidth}>
+          <View style={[contentWidth, status === "ready" && items.length > 0 && styles.headerRule]}>
             <PageTitle
               title="Кошик"
               subtitle={list ? `${list.title} · ${countLabel(items.length, "товар", "товари", "товарів")}` : undefined}
@@ -203,18 +204,24 @@ export function ShoppingListScreen() {
         renderItem={({ item }) => {
           const cheapest = cheapestAvailablePrice(item.product);
           const price = minProductPrice(item.product);
+          const title = productTitle(item.product);
+          const volume = volumeLabel(item.product.volume);
           return (
             <View style={contentWidth}>
               <View style={styles.item}>
                 <Pressable
                   accessibilityRole="link"
+                  accessibilityLabel={`${item.product.name}, ${item.product.volume}`}
                   onPress={() => navigation.navigate("ProductDetails", { productId: item.productId })}
                   style={({ pressed }) => [styles.itemMain, pressed && styles.pressed]}
                 >
-                  <ProductImage uri={item.product.imageUrl} size={60} />
+                  <View style={styles.itemImage}>
+                    <ProductImage uri={item.product.imageUrl} size={72} />
+                    {volume ? <VolumeTag label={volume} /> : null}
+                  </View>
                   <View style={styles.itemBody}>
-                    <Text style={type.bodyStrong} numberOfLines={2}>{item.product.name}</Text>
-                    <Text style={type.small} numberOfLines={1}>{item.product.volume}</Text>
+                    {title.brand ? <Text style={styles.itemBrand} numberOfLines={1}>{title.brand}</Text> : null}
+                    <Text style={styles.itemName} numberOfLines={2}>{title.name}</Text>
                   </View>
                 </Pressable>
                 <View style={styles.itemActions}>
@@ -272,9 +279,13 @@ const styles = StyleSheet.create({
   listChipTitle: { ...type.small, color: colors.text, fontFamily: fonts.semibold },
   listChipCount: { ...type.small, fontSize: 12 },
   listChipTextActive: { color: colors.onPrimary },
-  item: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  headerRule: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  item: { backgroundColor: colors.surface, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemMain: { flexDirection: "row", gap: spacing.md },
+  itemImage: { width: 72 },
   itemBody: { flex: 1, minWidth: 0 },
+  itemBrand: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19, color: colors.text },
+  itemName: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.textSoft },
   itemPrice: { ...type.bodyStrong, ...type.numeric },
   itemPriceCol: { flex: 1, minWidth: 0 },
   itemActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
