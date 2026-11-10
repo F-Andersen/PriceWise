@@ -8,7 +8,7 @@ import { Badge, contentWidth, ErrorState, PageTitle, ProductImage, SkeletonList,
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { Recipe } from "../types";
-import { countLabel } from "../utils/prices";
+import { countLabel, formatPrice } from "../utils/prices";
 import { colors, radii, shadow, spacing, type } from "../utils/theme";
 
 export function RecipesScreen() {
@@ -46,7 +46,7 @@ export function RecipesScreen() {
         <View style={contentWidth}>
           <Pressable
             accessibilityRole="link"
-            accessibilityLabel={`${item.title}, ${countLabel(item.items.length, "інгредієнт", "інгредієнти", "інгредієнтів")}`}
+            accessibilityLabel={`${item.title}, ${countLabel(item.items.length, "інгредієнт", "інгредієнти", "інгредієнтів")}, ${countLabel(item.guide.servings, "порція", "порції", "порцій")}${item.cost.dish ? `, приблизно ${formatPrice(item.cost.dish)}` : ""}`}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}
             onPress={() => navigation.navigate("RecipeDetails", { recipeId: item.id })}
           >
@@ -56,7 +56,8 @@ export function RecipesScreen() {
               <Text style={[type.small, styles.desc]} numberOfLines={2}>{item.description}</Text>
               <View style={styles.meta}>
                 <Badge label={countLabel(item.items.length, "інгредієнт", "інгредієнти", "інгредієнтів")} />
-                {item.guide ? <Badge label={`${item.guide.durationMinutes} хв`} icon="clock" /> : null}
+                <Badge label={`${item.guide.durationMinutes} хв`} icon="clock" />
+                {item.cost.dish ? <Badge label={`≈ ${formatPrice(item.cost.dish)} за ${countLabel(item.guide.servings, "порцію", "порції", "порцій")}`} tone="primary" /> : null}
               </View>
             </View>
             <Icon name="chevronRight" size={18} color={colors.muted} />
@@ -66,7 +67,7 @@ export function RecipesScreen() {
       ListEmptyComponent={
         status === "ready" ? (
           <View style={contentWidth}>
-            <StateView icon="book" title="Меню ще формується" text="Рецепти з'являться після імпорту товарів." />
+            <StateView icon="book" title="Меню ще формується" text="Рецепти з'являться, коли в каталозі будуть усі потрібні продукти." />
           </View>
         ) : null
       }
