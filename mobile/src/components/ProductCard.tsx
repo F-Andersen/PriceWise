@@ -46,7 +46,7 @@ export function ProductCard({ product, onPress, onAdd }: Props) {
       )}
       {onAdd ? (
         <View style={styles.add}>
-          <IconButton icon="plus" tone="primary" size={44} label={`Додати в кошик: ${product.name}`} onPress={onAdd} />
+          <IconButton icon="plus" tone="primary" size={36} label={`Додати в кошик: ${product.name}`} onPress={onAdd} />
         </View>
       ) : null}
     </View>

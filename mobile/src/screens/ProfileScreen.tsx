@@ -12,11 +12,13 @@ import { useAuth } from "../services/AuthContext";
 import { ShoppingList } from "../types";
 import { countLabel, formatDate } from "../utils/prices";
 import { colors, radii, spacing, type, shadow } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function ProfileScreen() {
   const { email, openAuth, signOut, token } = useAuth();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -46,7 +48,7 @@ export function ProfileScreen() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
       data={status === "ready" ? lists : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}

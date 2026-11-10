@@ -12,10 +12,12 @@ import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { OfferPage, Store } from "../types";
 import { colors, spacing } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function OffersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const addToCart = useAddToCart();
   const [page, setPage] = useState<OfferPage | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -69,7 +71,7 @@ export function OffersScreen() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
       data={status === "ready" ? offers : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}

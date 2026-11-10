@@ -136,7 +136,7 @@ export function AppNavigator() {
 const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   backButton: { width: layout.minTouch, height: layout.minTouch, alignItems: "center", justifyContent: "center", marginRight: spacing.xs },
-  tabBar: { backgroundColor: colors.background, paddingTop: spacing.xs, paddingHorizontal: spacing.md },
+  tabBar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: spacing.xs, paddingHorizontal: spacing.md },
   tabRow: { ...shadowRaised, flexDirection: "row", width: "100%", maxWidth: 560, alignSelf: "center", backgroundColor: colors.ink, borderRadius: radii.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.xs },
   tabItem: { flex: 1, minWidth: 0, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2 },
   tabIcon: { width: 40, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },

@@ -41,7 +41,9 @@ export function StorePicker() {
                 value={enabled}
                 disabled={isLast}
                 onValueChange={(next) => setStoreEnabled(store.id, next)}
-                trackColor={{ false: colors.border, true: colors.primary }}
+                trackColor={{ false: colors.borderStrong, true: colors.primary }}
+                thumbColor={colors.onPrimary}
+                {...({ activeThumbColor: colors.onPrimary } as object)}
               />
             </View>
           );

@@ -84,7 +84,7 @@ export function ChipRow({ children }: { children: ReactNode }) {
   );
 }
 
-export function IconButton({ icon, label, onPress, disabled, tone = "neutral", size = 44 }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; tone?: "neutral" | "primary"; size?: number }) {
+export function IconButton({ icon, label, onPress, disabled, tone = "neutral", size = 44 }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; tone?: "neutral" | "primary" | "ghost"; size?: number }) {
   const isPrimary = tone === "primary";
   const color = disabled ? colors.borderStrong : isPrimary ? colors.onPrimary : colors.text;
   return (
@@ -99,6 +99,7 @@ export function IconButton({ icon, label, onPress, disabled, tone = "neutral", s
         styles.iconButton,
         { width: size, height: size, borderRadius: size / 2 },
         isPrimary && styles.iconButtonPrimary,
+        tone === "ghost" && styles.iconButtonGhost,
         pressed && !disabled && styles.pressed
       ]}
     >
@@ -126,9 +127,9 @@ export function ProductImage({ uri, size, height, label }: { uri?: string | null
 export function Stepper({ value, onChange, name }: { value: number; onChange: (next: number) => void; name: string }) {
   return (
     <View style={styles.stepper}>
-      <IconButton icon="minus" label={`Зменшити кількість: ${name}`} disabled={value <= 1} onPress={() => onChange(value - 1)} />
+      <IconButton icon="minus" tone="ghost" size={36} label={`Зменшити кількість: ${name}`} disabled={value <= 1} onPress={() => onChange(value - 1)} />
       <Text accessibilityLabel={`Кількість: ${value}`} style={styles.stepperValue}>{value}</Text>
-      <IconButton icon="plus" label={`Збільшити кількість: ${name}`} onPress={() => onChange(value + 1)} />
+      <IconButton icon="plus" tone="ghost" size={36} label={`Збільшити кількість: ${name}`} onPress={() => onChange(value + 1)} />
     </View>
   );
 }
@@ -144,9 +145,9 @@ export function Notice({ title, text, tone = "caution", icon = "info" }: NoticeP
   const palette = toneStyles[tone];
   return (
     <View style={[styles.notice, { backgroundColor: palette.bg }]}>
-      <Icon name={icon} size={18} color={palette.fg} />
+      <Icon name={icon} size={16} color={palette.fg} />
       <View style={styles.flex}>
-        {title ? <Text style={[type.bodyStrong, { color: palette.fg }]}>{title}</Text> : null}
+        {title ? <Text style={[styles.noticeTitle, { color: palette.fg }]}>{title}</Text> : null}
         <Text style={[type.small, { color: tone === "neutral" ? colors.textSoft : palette.fg }]}>{text}</Text>
       </View>
     </View>
@@ -162,7 +163,7 @@ export function FreshnessNotice({ collectedAt, detail }: { collectedAt: string |
       icon="clock"
       tone={stale ? "caution" : "neutral"}
       title={`Ціни зібрано ${formatDate(collectedAt)} (${ageLabel(collectedAt)})`}
-      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціни із сайтів мереж, без прив'язки до міста. У вашому магазині можуть відрізнятися.")}
+      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціни із сайтів мереж. У вашому магазині можуть відрізнятися.")}
     />
   );
 }
@@ -245,19 +246,21 @@ const styles = StyleSheet.create({
   linkText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   card: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
   badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, maxWidth: "100%" },
-  chipRow: { flexGrow: 0, flexShrink: 0 },
-  chipRowContent: { gap: spacing.sm, paddingVertical: 2 },
+  chipRow: { flexGrow: 0, flexShrink: 0, marginHorizontal: -spacing.lg },
+  chipRowContent: { gap: spacing.sm, paddingVertical: 2, paddingHorizontal: spacing.lg },
   chip: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { ...type.small, color: colors.textSoft, fontFamily: fonts.medium },
   chipTextActive: { color: colors.onPrimary, fontFamily: fonts.semibold },
   iconButton: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   iconButtonPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  iconButtonGhost: { backgroundColor: "transparent", borderColor: "transparent" },
   imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md },
   image: { width: "100%", height: "100%" },
-  stepper: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 28, textAlign: "center" },
-  notice: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, borderRadius: radii.md },
+  stepper: { flexDirection: "row", alignItems: "center", padding: 2, backgroundColor: colors.surfaceMuted, borderRadius: radii.pill },
+  stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 24, textAlign: "center" },
+  notice: { flexDirection: "row", gap: spacing.sm, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radii.md },
+  noticeTitle: { ...type.small, fontFamily: fonts.semibold },
   priceDate: { flexDirection: "row", alignItems: "center", gap: 4 },
   state: { alignItems: "center", paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
   stateIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft, marginBottom: spacing.md },

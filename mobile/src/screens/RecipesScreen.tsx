@@ -10,10 +10,12 @@ import { api } from "../services/api";
 import { Recipe } from "../types";
 import { countLabel, formatPrice } from "../utils/prices";
 import { colors, radii, shadow, spacing, type } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function RecipesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -31,7 +33,7 @@ export function RecipesScreen() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
       data={status === "ready" ? recipes : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}

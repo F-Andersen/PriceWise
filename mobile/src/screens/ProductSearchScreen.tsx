@@ -13,10 +13,12 @@ import { useAddToCart } from "../services/useAddToCart";
 import { ProductPage } from "../types";
 import { countLabel } from "../utils/prices";
 import { colors, spacing, type } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function ProductSearchScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const addToCart = useAddToCart();
   const [result, setResult] = useState<ProductPage | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -69,7 +71,7 @@ export function ProductSearchScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={wideContent}>
         <PageTitle title="Пошук товарів" />
         <SearchField label="Пошук товарів" placeholder="Назва, бренд або категорія" value={query} onChangeText={changeQuery} />

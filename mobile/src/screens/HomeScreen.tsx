@@ -13,10 +13,12 @@ import { useAddToCart } from "../services/useAddToCart";
 import { CatalogSummary, Offer, Product, ProductPage, Store } from "../types";
 import { ageLabel, formatDate, formatPrice, isStale, minProductPrice, plural } from "../utils/prices";
 import { colors, fonts, radii, shadow, shadowRaised, spacing, type } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const addToCart = useAddToCart();
   const [catalog, setCatalog] = useState<ProductPage | null>(null);
   const [summary, setSummary] = useState<CatalogSummary | null>(null);
@@ -52,7 +54,7 @@ export function HomeScreen() {
   const total = summary?.total ?? 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: tabInset }]} showsVerticalScrollIndicator={false}>
       <View style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}>
         <View style={wideContent}>
           <View style={styles.brandRow}>
@@ -120,7 +122,7 @@ export function HomeScreen() {
                       actionLabel="Показати всі"
                       onAction={() => navigation.navigate("Offers" as never)}
                     />
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railScroll} contentContainerStyle={styles.rail}>
                       {offers.map((offer) => (
                         <OfferCard key={offer.id} offer={offer} onPress={() => navigation.navigate("ProductDetails", { productId: offer.product.id })} />
                       ))}
@@ -182,7 +184,8 @@ const styles = StyleSheet.create({
   statLabel: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.onInkMuted },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   disclaimer: { ...type.small },
-  rail: { gap: spacing.md, paddingVertical: spacing.xs, paddingHorizontal: 2 },
+  railScroll: { marginHorizontal: -spacing.lg, marginBottom: -spacing.md },
+  rail: { gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   gridGap: { marginTop: spacing.md },
   dealList: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.lg },
   dealRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },

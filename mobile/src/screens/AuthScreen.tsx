@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.textSoft, marginTop: spacing.sm, marginBottom: spacing.xl },
   notice: { marginBottom: spacing.md },
   actions: { gap: spacing.sm, marginTop: spacing.xs },
-  textButton: { minHeight: layout.minTouch, justifyContent: "center", paddingLeft: spacing.md },
+  textButton: { minHeight: layout.minTouch, justifyContent: "center", paddingHorizontal: spacing.sm, marginRight: -spacing.sm },
   textButtonCentered: { minHeight: layout.minTouch, alignItems: "center", justifyContent: "center" },
   textButtonLabel: { ...type.label, color: colors.primaryDark }
 });

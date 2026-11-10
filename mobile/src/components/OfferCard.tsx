@@ -24,8 +24,10 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
         <Text style={type.price}>{formatPrice(offer.price)}</Text>
         <Text style={styles.oldPrice}>{formatPrice(offer.oldPrice)}</Text>
       </View>
-      {offer.promoEndsAt ? <Text style={styles.promoEnd}>акція {promoUntilLabel(offer.promoEndsAt)}</Text> : null}
-      <Text style={styles.date}>станом на {formatDate(checkedAt(offer))}</Text>
+      <Text style={styles.date} numberOfLines={1}>
+        {offer.promoEndsAt ? <Text style={styles.promoEnd}>{promoUntilLabel(offer.promoEndsAt)} · </Text> : null}
+        дані на {formatDate(checkedAt(offer)).slice(0, 5)}
+      </Text>
     </>
   );
 
@@ -52,7 +54,7 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
       </Pressable>
       {onAdd ? (
         <View style={styles.addWrap}>
-          <IconButton icon="plus" tone="primary" label={`Додати в кошик: ${offer.product.name}`} onPress={onAdd} />
+          <IconButton icon="plus" tone="primary" size={36} label={`Додати в кошик: ${offer.product.name}`} onPress={onAdd} />
         </View>
       ) : null}
     </View>
@@ -70,7 +72,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: "row", alignItems: "baseline", flexWrap: "wrap", columnGap: spacing.sm, marginTop: spacing.xs },
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
   date: { ...type.small, fontSize: 12, marginTop: 2 },
-  promoEnd: { ...type.small, fontSize: 12, marginTop: 2, color: colors.deal },
+  promoEnd: { color: colors.deal },
   list: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, marginBottom: spacing.md },
   listMain: { flex: 1, minWidth: 0, flexDirection: "row", gap: spacing.md, padding: spacing.md },
   listBadge: { position: "absolute", top: spacing.xs, left: spacing.xs },
