@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   tabRow: { ...shadowRaised, flexDirection: "row", width: "100%", maxWidth: 560, alignSelf: "center", backgroundColor: colors.ink, borderRadius: radii.pill, paddingVertical: spacing.sm, paddingHorizontal: spacing.xs },
   tabItem: { flex: 1, minWidth: 0, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2 },
   tabIcon: { width: 40, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
-  tabIconActive: { backgroundColor: colors.gold },
+  tabIconActive: { backgroundColor: colors.onInk },
   tabLabel: { ...type.label, fontSize: 10.5, lineHeight: 14, color: colors.onInkMuted, fontFamily: fonts.medium },
   tabLabelActive: { color: colors.onInk, fontFamily: fonts.bold }
 });

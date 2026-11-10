@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { ageLabel, formatDate, isStale } from "../utils/prices";
-import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
+import { colors, layout, radii, outlined, spacing, type, fonts } from "../utils/theme";
 import { Icon, IconName } from "./Icon";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -68,6 +68,7 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && styles.pressed]}
     >
@@ -78,7 +79,7 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
 
 export function ChipRow({ children }: { children: ReactNode }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
+    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
       {children}
     </ScrollView>
   );
@@ -244,11 +245,11 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.md },
   sectionAction: { minHeight: layout.minTouch, justifyContent: "flex-end", paddingLeft: spacing.sm },
   linkText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
-  card: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
+  card: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
   badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, maxWidth: "100%" },
   chipRow: { flexGrow: 0, flexShrink: 0, marginHorizontal: -spacing.lg },
   chipRowContent: { gap: spacing.sm, paddingVertical: 2, paddingHorizontal: spacing.lg },
-  chip: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chip: { minHeight: 38, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
   chipText: { ...type.small, color: colors.textSoft, fontFamily: fonts.medium },
   chipTextActive: { color: colors.onPrimary, fontFamily: fonts.semibold },
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
   stateBody: { textAlign: "center", color: colors.textSoft, marginTop: spacing.xs, maxWidth: 420 },
   stateAction: { marginTop: spacing.md, width: "100%", maxWidth: 320 },
   bone: { backgroundColor: colors.surfaceMuted, borderRadius: radii.sm },
-  skeletonRow: { ...shadow, flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg },
+  skeletonRow: { ...outlined, flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg },
   skeletonImage: { width: 76, height: 76 },
   skeletonLines: { flex: 1, gap: spacing.sm },
   skeletonLineLong: { height: 14, width: "85%" },

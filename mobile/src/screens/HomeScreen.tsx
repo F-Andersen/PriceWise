@@ -12,7 +12,7 @@ import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { CatalogSummary, Offer, Product, ProductPage, Store } from "../types";
 import { ageLabel, formatDate, formatPrice, isStale, minProductPrice, plural } from "../utils/prices";
-import { colors, fonts, radii, shadow, shadowRaised, spacing, type } from "../utils/theme";
+import { colors, fonts, radii, outlined, shadowRaised, spacing, type } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function HomeScreen() {
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   railScroll: { marginHorizontal: -spacing.lg, marginBottom: -spacing.md },
   rail: { gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
   gridGap: { marginTop: spacing.md },
-  dealList: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.lg },
+  dealList: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.lg },
   dealRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },
   dealDivider: { borderTopWidth: 1, borderTopColor: colors.border },
   dealText: { flex: 1, minWidth: 0 }

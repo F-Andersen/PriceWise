@@ -11,7 +11,7 @@ import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList } from "../types";
 import { countLabel, formatDate } from "../utils/prices";
-import { colors, radii, spacing, type, shadow } from "../utils/theme";
+import { colors, radii, spacing, type, outlined } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function ProfileScreen() {
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   pressed: { opacity: 0.75 },
-  list: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
+  list: { ...outlined, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
   listBody: { flex: 1, minWidth: 0 },
   footer: { marginTop: spacing.lg, gap: spacing.sm }
 });

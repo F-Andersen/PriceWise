@@ -12,7 +12,7 @@ import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, layout, radii, shadow, shadowRaised, spacing, type, fonts } from "../utils/theme";
+import { colors, layout, radii, outlined, shadowRaised, spacing, type, fonts } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function ShoppingListScreen() {
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   listChipTitle: { ...type.small, color: colors.text, fontFamily: fonts.semibold },
   listChipCount: { ...type.small, fontSize: 12 },
   listChipTextActive: { color: colors.onPrimary },
-  item: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  item: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
   itemMain: { flexDirection: "row", gap: spacing.md },
   itemBody: { flex: 1, minWidth: 0 },
   itemPrice: { ...type.bodyStrong, ...type.numeric },

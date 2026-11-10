@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Offer } from "../types";
 import { checkedAt, formatDate, formatPrice, promoUntilLabel } from "../utils/prices";
-import { colors, radii, shadow, spacing, type } from "../utils/theme";
+import { colors, radii, outlined, spacing, type } from "../utils/theme";
 import { Badge, IconButton, ProductImage } from "./ui";
 
 type Props = {
@@ -63,7 +63,7 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
-  rail: { ...shadow, width: 184, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md },
+  rail: { ...outlined, width: 184, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md },
   railImage: { position: "relative" },
   floatingBadge: { position: "absolute", top: spacing.sm, left: spacing.sm },
   railBody: { marginTop: spacing.sm },
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
   date: { ...type.small, fontSize: 12, marginTop: 2 },
   promoEnd: { color: colors.deal },
-  list: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, marginBottom: spacing.md },
+  list: { ...outlined, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, marginBottom: spacing.md },
   listMain: { flex: 1, minWidth: 0, flexDirection: "row", gap: spacing.md, padding: spacing.md },
   listBadge: { position: "absolute", top: spacing.xs, left: spacing.xs },
   listBody: { flex: 1, minWidth: 0 },

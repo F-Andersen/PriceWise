@@ -1,23 +1,24 @@
 import { Platform, TextStyle } from "react-native";
 
 /**
- * Візуальна система PriceWise: тепле світле тло, глибокий чорнильно-зелений колір
- * і стриманий золотий акцент. Семантичні кольори описують стан даних, а не магазин.
+ * Візуальна система PriceWise: біле тло, тонкі лінії замість тіней і чорний текст, тож
+ * колір лишається за товарами й цінами. Темно-зелений — єдиний акцент інтерфейсу.
+ * Семантичні кольори описують стан даних, а не магазин.
  * Пари текст/тло мають контраст щонайменше 4.5:1; золотий лише декоративний.
  */
 export const colors = {
-  background: "#F6F3EC",
+  background: "#FFFFFF",
   surface: "#FFFFFF",
-  surfaceMuted: "#EFEBE1",
-  text: "#16211E",
-  textSoft: "#47524E",
-  muted: "#626B66",
-  border: "#E7E2D6",
+  surfaceMuted: "#F3F4F2",
+  text: "#111513",
+  textSoft: "#3F4744",
+  muted: "#5F6663",
+  border: "#E6E8E5",
   borderStrong: "#8F968F",
 
   primary: "#123F3A",
   primaryDark: "#0B2B28",
-  primarySoft: "#DFEBE6",
+  primarySoft: "#E4EFEA",
 
   /** Темні панелі: головний блок, плаваюче меню. */
   ink: "#0F2A27",
@@ -49,7 +50,7 @@ export const colors = {
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
 
-export const radii = { sm: 10, md: 14, lg: 20, xl: 28, pill: 999 };
+export const radii = { sm: 8, md: 10, lg: 14, xl: 20, pill: 999 };
 
 export const layout = {
   /** Колонка для тексту й форм на широкому екрані. */
@@ -68,7 +69,9 @@ function makeShadow(y: number, blur: number, opacity: number, elevation: number)
   }) as object;
 }
 
-export const shadow = makeShadow(6, 20, 0.06, 2);
+/** Межа звичайної картки: на білому тлі її відділяє лінія, а не тінь. */
+export const outlined = { borderWidth: 1, borderColor: colors.border };
+/** Лише для того, що плаває над вмістом: меню, підсумок кошика. */
 export const shadowRaised = makeShadow(14, 36, 0.14, 8);
 
 export const fonts = {
