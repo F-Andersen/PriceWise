@@ -87,6 +87,18 @@ export function storeCount(product: Product) {
   return latestByStore(product.prices).filter(isConfirmedPrice).length;
 }
 
+/** Спершу підтверджені ціни від найнижчої, далі застарілі й відсутні: їх не можна купити за цією ціною. */
+export function sortStorePrices<T extends Price>(prices: T[]) {
+  const byPrice = (a: T, b: T) => activePrice(a) - activePrice(b);
+  return [...prices.filter(isConfirmedPrice).sort(byPrice), ...prices.filter((price) => !isConfirmedPrice(price)).sort(byPrice)];
+}
+
+/** Місце значення на шкалі від 0 до 1; якщо ціна не змінювалась — посередині. */
+export function rangePosition(value: number, min: number, max: number) {
+  if (max <= min) return 0.5;
+  return Math.min(1, Math.max(0, (value - min) / (max - min)));
+}
+
 /** Точні збіги окремо від схожих товарів: схожі не беруть участі в мінімумі й середній ціні. */
 export function splitMarketPrices(prices: Array<Price | MarketPrice>) {
   const exact: Array<Price | MarketPrice> = [];

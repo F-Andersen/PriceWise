@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Price, Product, Store } from "../types";
-import { activePrice, checkedAt, dailyLowestPrices, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
+import { rangePosition, sortStorePrices, activePrice, checkedAt, dailyLowestPrices, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
 
 const store = (id: string) => ({ id, name: id, city: "Київ" }) as Store;
 const DAY = 24 * 60 * 60 * 1000;
@@ -98,5 +98,34 @@ describe("price freshness", () => {
 describe("promoUntilLabel", () => {
   it("formats the last day of a promotion", () => {
     assert.equal(promoUntilLabel(new Date(2026, 10, 10, 23, 59)), "до 10.11");
+  });
+});
+
+describe("sortStorePrices", () => {
+  it("puts confirmed prices first, cheapest on top", () => {
+    const fresh = new Date().toISOString();
+    const stale = new Date(Date.now() - 10 * DAY).toISOString();
+    const prices = [
+      price({ id: "a", price: 60, dateCollected: fresh }),
+      price({ id: "b", price: 40, dateCollected: fresh }),
+      price({ id: "c", price: 10, dateCollected: stale }),
+      price({ id: "d", price: 20, dateCollected: fresh, isAvailable: false })
+    ];
+    assert.deepEqual(sortStorePrices(prices).map((item) => item.id), ["b", "a", "c", "d"]);
+    assert.deepEqual(prices.map((item) => item.id), ["a", "b", "c", "d"]);
+  });
+});
+
+describe("rangePosition", () => {
+  it("places a value between the limits", () => {
+    assert.equal(rangePosition(50, 0, 100), 0.5);
+    assert.equal(rangePosition(0, 0, 100), 0);
+    assert.equal(rangePosition(100, 0, 100), 1);
+  });
+
+  it("clamps values outside the range and handles a flat price", () => {
+    assert.equal(rangePosition(120, 0, 100), 1);
+    assert.equal(rangePosition(-5, 0, 100), 0);
+    assert.equal(rangePosition(40, 40, 40), 0.5);
   });
 });
