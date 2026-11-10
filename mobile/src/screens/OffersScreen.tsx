@@ -1,12 +1,12 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { NavigationProp, RouteProp, useFocusEffect, useNavigation, useRoute } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfferCard } from "../components/OfferCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { SearchField } from "../components/SearchField";
-import { Chip, ChipRow, contentWidth, ErrorState, FreshnessNotice, PageTitle, SkeletonList, StateView } from "../components/ui";
+import { Chip, ChipRow, contentWidth, ErrorState, FreshnessNotice, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
@@ -14,8 +14,12 @@ import { OfferPage, Store } from "../types";
 import { colors, spacing } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
+type OffersRoute = { Offers: { storeId?: string } | undefined };
+
 export function OffersScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabs = useNavigation<NavigationProp<OffersRoute>>();
+  const route = useRoute<RouteProp<OffersRoute, "Offers">>();
   const insets = useSafeAreaInsets();
   const tabInset = useTabBarInset();
   const addToCart = useAddToCart();
@@ -29,6 +33,14 @@ export function OffersScreen() {
 
   // Лише остання відповідь має значення, якщо запит змінюють швидко.
   const requestId = useRef(0);
+
+  // Магазин, вибраний на головній. Параметр скидаємо, щоб повторний вибір теж спрацював.
+  const requestedStoreId = route.params?.storeId;
+  useEffect(() => {
+    if (!requestedStoreId) return;
+    setSelectedStoreId(requestedStoreId);
+    tabs.setParams({ storeId: undefined });
+  }, [requestedStoreId, tabs]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAppliedQuery(query.trim()), 250);
@@ -69,30 +81,32 @@ export function OffersScreen() {
   }
 
   return (
+    <View style={styles.container}>
+      {/* Як у пошуку: поле й магазини лишаються над списком під час прокрутки. */}
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <View style={contentWidth}>
+          <SearchField label="Пошук серед акцій" placeholder="Товар, бренд або мережа" value={query} onChangeText={setQuery} />
+          {stores.length ? (
+            <ChipRow>
+              <Chip label="Усі" active={!selectedStoreId} onPress={() => setSelectedStoreId(undefined)} />
+              {grouped.map(({ store, count }) => (
+                <Chip key={store.id} label={`${store.name} · ${count}`} active={selectedStoreId === store.id} onPress={() => setSelectedStoreId(store.id)} />
+              ))}
+            </ChipRow>
+          ) : null}
+        </View>
+      </View>
+
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
+      contentContainerStyle={[styles.content, { paddingBottom: tabInset }]}
       data={status === "ready" ? offers : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View style={contentWidth}>
-          <PageTitle title="Акції магазинів" subtitle="Пропозиції, які були чинними на дату збору" />
-          <SearchField label="Пошук серед акцій" placeholder="Товар, бренд або мережа" value={query} onChangeText={setQuery} />
-          {status === "ready" ? (
-            <>
-              <FreshnessNotice collectedAt={page?.latestCheckedAt ?? null} detail="Акція могла вже закінчитися. Перевірте її на сайті чи в магазині." />
-              <View style={styles.filters}>
-                <ChipRow>
-                  <Chip label="Усі" active={!selectedStoreId} onPress={() => setSelectedStoreId(undefined)} />
-                  {grouped.map(({ store, count }) => (
-                    <Chip key={store.id} label={`${store.name} · ${count}`} active={selectedStoreId === store.id} onPress={() => setSelectedStoreId(store.id)} />
-                  ))}
-                </ChipRow>
-              </View>
-            </>
-          ) : null}
+          {status === "ready" ? <FreshnessNotice collectedAt={page?.latestCheckedAt ?? null} detail="Акція могла вже закінчитися. Перевірте її на сайті чи в магазині." /> : null}
           {status === "loading" ? <SkeletonList label="Завантаження акцій" /> : null}
           {status === "error" ? <ErrorState onRetry={() => { setStatus("loading"); load(); }} /> : null}
         </View>
@@ -121,12 +135,13 @@ export function OffersScreen() {
         ) : undefined
       }
     />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
-  filters: { marginVertical: spacing.md },
-  more: { marginTop: spacing.sm }
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  more: { marginTop: spacing.lg }
 });
