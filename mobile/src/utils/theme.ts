@@ -53,24 +53,23 @@ export const layout = {
 export const outlined = { borderWidth: 1, borderColor: colors.border };
 
 export const fonts = {
-  regular: "Manrope_400Regular",
-  medium: "Manrope_500Medium",
-  semibold: "Manrope_600SemiBold",
-  bold: "Manrope_700Bold",
-  extrabold: "Manrope_800ExtraBold"
+  regular: "IBMPlexSans_400Regular",
+  medium: "IBMPlexSans_500Medium",
+  semibold: "IBMPlexSans_600SemiBold",
+  bold: "IBMPlexSans_700Bold"
 };
 
 const numeric: TextStyle = { fontVariant: ["tabular-nums"] };
 
 export const type = {
-  display: { fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
+  display: { fontFamily: fonts.bold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
   title: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 27, color: colors.text } as TextStyle,
   heading: { fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text } as TextStyle,
   body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 23, color: colors.text } as TextStyle,
   bodyStrong: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21, color: colors.text } as TextStyle,
   small: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, color: colors.muted } as TextStyle,
   label: { fontFamily: fonts.semibold, fontSize: 12, lineHeight: 16, color: colors.muted } as TextStyle,
-  price: { ...numeric, fontFamily: fonts.extrabold, fontSize: 18, lineHeight: 24, color: colors.text } as TextStyle,
-  priceLarge: { ...numeric, fontFamily: fonts.extrabold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
+  price: { ...numeric, fontFamily: fonts.bold, fontSize: 18, lineHeight: 24, color: colors.text } as TextStyle,
+  priceLarge: { ...numeric, fontFamily: fonts.bold, fontSize: 30, lineHeight: 36, color: colors.text, letterSpacing: -0.3 } as TextStyle,
   numeric
 };

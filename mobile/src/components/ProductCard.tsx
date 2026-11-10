@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   volumeTag: { position: "absolute", left: 0, bottom: 0, maxWidth: "100%", paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs, backgroundColor: colors.text },
   volumeText: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 15, color: colors.onPrimary },
-  brand: { marginTop: spacing.sm, fontFamily: fonts.extrabold, fontSize: 14, lineHeight: 19, color: colors.text },
+  brand: { marginTop: spacing.sm, fontFamily: fonts.bold, fontSize: 14, lineHeight: 19, color: colors.text },
   name: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.textSoft },
   nameAlone: { marginTop: spacing.sm },
   prices: { marginTop: spacing.sm },
