@@ -5,6 +5,7 @@ import { chunk } from "../utils/chunk";
 import { hasMorePages, parsePagination } from "../utils/pagination";
 import { parseExcludedStores } from "../utils/storeFilter";
 import { zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { matchesOfferQuery } from "../services/offerSearch";
 import { isPriceFresh } from "../utils/freshness";
 import { activePrice, hasActiveDiscount, roundMoney, toNumber } from "../utils/money";
 
@@ -46,6 +47,7 @@ async function loadOfferPrices(ids: string[]) {
 
 router.get("/", async (req, res) => {
   const storeId = typeof req.query.storeId === "string" ? req.query.storeId : undefined;
+  const query = typeof req.query.query === "string" ? req.query.query.slice(0, 100) : "";
   const now = new Date();
 
   // Every store's offers, so the counts on the store filter stay complete.
@@ -78,11 +80,13 @@ router.get("/", async (req, res) => {
     .filter((offer) => offer.saveAmount > 0)
     .sort((a, b) => b.discountPercent - a.discountPercent || a.id.localeCompare(b.id));
 
+  // Store counts follow the search, so each chip says what it would show.
+  const found = offers.filter((offer) => matchesOfferQuery(offer, query));
   const counts = new Map<string, number>();
-  for (const offer of offers) counts.set(offer.store.id, (counts.get(offer.store.id) ?? 0) + 1);
+  for (const offer of found) counts.set(offer.store.id, (counts.get(offer.store.id) ?? 0) + 1);
 
   const { page, limit, skip } = parsePagination(req.query);
-  const matching = storeId ? offers.filter((offer) => offer.store.id === storeId) : offers;
+  const matching = storeId ? found.filter((offer) => offer.store.id === storeId) : found;
   const items = matching.slice(skip, skip + limit);
   res.json({
     items,
