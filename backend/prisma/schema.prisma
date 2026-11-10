@@ -11,8 +11,21 @@ model User {
   id            String         @id @default(cuid())
   email         String         @unique
   passwordHash  String
+  /// Raised on every password change; tokens issued earlier stop working.
+  tokenVersion  Int            @default(0)
   createdAt     DateTime       @default(now())
   shoppingLists ShoppingList[]
+  passwordReset PasswordReset?
+}
+
+/// The one pending "forgot password" code of a user.
+model PasswordReset {
+  userId    String   @id
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Store {
