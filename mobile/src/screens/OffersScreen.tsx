@@ -1,10 +1,11 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OfferCard } from "../components/OfferCard";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { SearchField } from "../components/SearchField";
 import { Chip, ChipRow, contentWidth, ErrorState, FreshnessNotice, PageTitle, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
@@ -21,16 +22,30 @@ export function OffersScreen() {
   const [stores, setStores] = useState<Store[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<string | undefined>();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [query, setQuery] = useState("");
+  const [appliedQuery, setAppliedQuery] = useState("");
+
+  // Лише остання відповідь має значення, якщо запит змінюють швидко.
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setAppliedQuery(query.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const load = useCallback(() => {
-    Promise.all([api.offers({ storeId: selectedStoreId }), api.stores()])
+    const id = ++requestId.current;
+    Promise.all([api.offers({ storeId: selectedStoreId, query: appliedQuery }), api.stores()])
       .then(([nextPage, nextStores]) => {
+        if (id !== requestId.current) return;
         setPage(nextPage);
         setStores(nextStores);
         setStatus("ready");
       })
-      .catch(() => setStatus("error"));
-  }, [selectedStoreId]);
+      .catch(() => {
+        if (id === requestId.current) setStatus("error");
+      });
+  }, [selectedStoreId, appliedQuery]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -40,9 +55,10 @@ export function OffersScreen() {
   async function loadMore() {
     if (!page || loadingMore) return;
     setLoadingMore(true);
+    const id = requestId.current;
     try {
-      const next = await api.offers({ storeId: selectedStoreId, page: page.page + 1 });
-      setPage({ ...next, items: [...page.items, ...next.items] });
+      const next = await api.offers({ storeId: selectedStoreId, query: appliedQuery, page: page.page + 1 });
+      if (id === requestId.current) setPage({ ...next, items: [...page.items, ...next.items] });
     } catch {
       // Кнопка лишається: можна спробувати ще раз.
     } finally {
@@ -57,9 +73,11 @@ export function OffersScreen() {
       data={status === "ready" ? offers : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <View style={contentWidth}>
           <PageTitle title="Акції магазинів" subtitle="Пропозиції, які були чинними на дату збору" />
+          <SearchField label="Пошук серед акцій" placeholder="Товар, бренд або мережа" value={query} onChangeText={setQuery} />
           {status === "ready" ? (
             <>
               <FreshnessNotice collectedAt={page?.latestCheckedAt ?? null} detail="Акція могла вже закінчитися. Перевірте її на сайті чи в магазині." />
@@ -92,7 +110,11 @@ export function OffersScreen() {
       ListEmptyComponent={
         status === "ready" ? (
           <View style={contentWidth}>
-            <StateView icon="tag" title="Акцій немає" text="Для цього магазину в базі немає акційних цін. Це не означає, що акцій немає в самому магазині." actionLabel="Показати всі акції" onAction={() => setSelectedStoreId(undefined)} />
+            {appliedQuery ? (
+              <StateView icon="search" title={`Серед акцій немає «${appliedQuery}»`} text="У базі немає такої акційної ціни. Це не означає, що акції немає в самому магазині." actionLabel="Очистити пошук" onAction={() => setQuery("")} />
+            ) : (
+              <StateView icon="tag" title="Акцій немає" text="Для цього магазину в базі немає акційних цін. Це не означає, що акцій немає в самому магазині." actionLabel="Показати всі акції" onAction={() => setSelectedStoreId(undefined)} />
+            )}
           </View>
         ) : null
       }
