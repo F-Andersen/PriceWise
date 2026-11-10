@@ -125,6 +125,15 @@ export function ProductImage({ uri, size, height, label }: { uri?: string | null
   );
 }
 
+/** Чорна мітка об'єму в кутку фото товару. */
+export function VolumeTag({ label }: { label: string }) {
+  return (
+    <View style={styles.volumeTag}>
+      <Text style={styles.volumeText} numberOfLines={1}>{label}</Text>
+    </View>
+  );
+}
+
 export function Stepper({ value, onChange, name }: { value: number; onChange: (next: number) => void; name: string }) {
   return (
     <View style={styles.stepper}>
@@ -258,6 +267,8 @@ const styles = StyleSheet.create({
   iconButtonGhost: { backgroundColor: "transparent", borderColor: "transparent" },
   imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md },
   image: { width: "100%", height: "100%" },
+  volumeTag: { position: "absolute", left: 0, bottom: 0, maxWidth: "100%", paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs, backgroundColor: colors.text },
+  volumeText: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 15, color: colors.onPrimary },
   stepper: { flexDirection: "row", alignItems: "center", padding: 2, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
   stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 24, textAlign: "center" },
   notice: { flexDirection: "row", gap: spacing.sm, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radii.md },
