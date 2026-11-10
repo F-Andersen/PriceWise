@@ -62,9 +62,12 @@ async function listProducts(req: Request, query: string) {
     ...(ids.length ? { id: { in: ids } } : {})
   };
   const where: Prisma.ProductWhereInput = category ? { ...baseWhere, category } : baseWhere;
+  // sort=popular: products sold in the most chains first, for a showcase that compares well.
+  const popular = req.query.sort === "popular";
+  const orderBy: Prisma.ProductOrderByWithRelationInput[] = popular ? [{ sources: { _count: "desc" } }, { name: "asc" }, { id: "asc" }] : [{ name: "asc" }, { id: "asc" }];
 
   const [items, total, facets] = await Promise.all([
-    prisma.product.findMany({ where, include: latestPricesInclude(excludedStoreIds), orderBy: [{ name: "asc" }, { id: "asc" }], skip, take: limit }),
+    prisma.product.findMany({ where, include: latestPricesInclude(excludedStoreIds), orderBy, skip, take: limit }),
     prisma.product.count({ where }),
     prisma.product.groupBy({ by: ["category"], where: baseWhere, _count: { _all: true }, orderBy: { category: "asc" } })
   ]);

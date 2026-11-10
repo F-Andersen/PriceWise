@@ -61,7 +61,7 @@ export function OfferCard({ offer, onPress, onAdd, layout = "rail" }: Props) {
 
 const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
-  rail: { ...shadow, width: 196, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  rail: { ...shadow, width: 184, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md },
   railImage: { position: "relative" },
   floatingBadge: { position: "absolute", top: spacing.sm, left: spacing.sm },
   railBody: { marginTop: spacing.sm },
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
   date: { ...type.small, fontSize: 12, marginTop: 2 },
   promoEnd: { ...type.small, fontSize: 12, marginTop: 2, color: colors.deal },
-  list: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md },
+  list: { ...shadow, flexDirection: "row", backgroundColor: colors.surface, borderRadius: radii.lg, marginBottom: spacing.md },
   listMain: { flex: 1, minWidth: 0, flexDirection: "row", gap: spacing.md, padding: spacing.md },
   listBadge: { position: "absolute", top: spacing.xs, left: spacing.xs },
   listBody: { flex: 1, minWidth: 0 },

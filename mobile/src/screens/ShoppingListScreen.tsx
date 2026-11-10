@@ -11,7 +11,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, layout, radii, shadow, spacing, type } from "../utils/theme";
+import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
 
 export function ShoppingListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -226,15 +226,15 @@ const styles = StyleSheet.create({
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   pressed: { opacity: 0.75 },
   newList: { minHeight: layout.minTouch, justifyContent: "center" },
-  newListText: { ...type.small, color: colors.primary, fontWeight: "600" },
+  newListText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
   lists: { flexGrow: 0, marginBottom: spacing.md },
   listsContent: { gap: spacing.sm },
   listChip: { minWidth: 120, maxWidth: 180, minHeight: 52, justifyContent: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   listChipActive: { backgroundColor: colors.text, borderColor: colors.text },
-  listChipTitle: { ...type.small, color: colors.text, fontWeight: "600" },
+  listChipTitle: { ...type.small, color: colors.text, fontFamily: fonts.semibold },
   listChipCount: { ...type.small, fontSize: 12 },
   listChipTextActive: { color: colors.onPrimary },
-  item: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.md },
+  item: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
   itemMain: { flexDirection: "row", gap: spacing.md },
   itemBody: { flex: 1, minWidth: 0 },
   itemPrice: { ...type.bodyStrong, ...type.numeric, marginTop: spacing.xs },
@@ -245,5 +245,5 @@ const styles = StyleSheet.create({
   footerText: { flex: 1, minWidth: 0 },
   footerHint: { ...type.small, fontSize: 12 },
   footerDate: { ...type.small, fontSize: 12, marginBottom: spacing.sm },
-  footerDateStale: { color: colors.caution, fontWeight: "600" }
+  footerDateStale: { color: colors.caution, fontFamily: fonts.semibold }
 });

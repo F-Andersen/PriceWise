@@ -9,7 +9,7 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { Product, Recipe } from "../types";
 import { countLabel, formatPrice, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, radii, spacing, type } from "../utils/theme";
+import { colors, radii, spacing, type, fonts } from "../utils/theme";
 
 export function RecipeDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "RecipeDetails">>();
@@ -147,10 +147,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
   divider: { borderTopWidth: 1, borderTopColor: colors.border },
   rowBody: { flex: 1, minWidth: 0 },
-  price: { ...type.small, ...type.numeric, color: colors.text, fontWeight: "600" },
+  price: { ...type.small, ...type.numeric, color: colors.text, fontFamily: fonts.semibold },
   step: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
   stepLast: { marginBottom: 0 },
   stepNumber: { width: 28, height: 28, borderRadius: radii.pill, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
-  stepNumberText: { ...type.small, color: colors.primaryDark, fontWeight: "700" },
+  stepNumberText: { ...type.small, color: colors.primaryDark, fontFamily: fonts.bold },
   stepText: { flex: 1 }
 });

@@ -11,7 +11,7 @@ import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList } from "../types";
 import { countLabel, formatDate } from "../utils/prices";
-import { colors, radii, spacing, type } from "../utils/theme";
+import { colors, radii, spacing, type, shadow } from "../utils/theme";
 
 export function ProfileScreen() {
   const { email, signOut } = useAuth();
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   pressed: { opacity: 0.75 },
-  list: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, marginBottom: spacing.sm },
+  list: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
   listBody: { flex: 1, minWidth: 0 },
   footer: { marginTop: spacing.lg }
 });

@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, layout, radii, spacing, type } from "../utils/theme";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 import { Icon } from "./Icon";
 
 type ToastOptions = {
@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.text
   },
   toastError: { backgroundColor: colors.danger },
-  message: { ...type.small, flex: 1, color: colors.onPrimary, fontWeight: "500" },
+  message: { ...type.small, flex: 1, color: colors.onPrimary, fontFamily: fonts.medium },
   action: { minHeight: layout.minTouch, justifyContent: "center", paddingLeft: spacing.sm },
-  actionText: { ...type.small, color: colors.onPrimary, fontWeight: "700", textDecorationLine: "underline" }
+  actionText: { ...type.small, color: colors.onPrimary, fontFamily: fonts.bold, textDecorationLine: "underline" }
 });
