@@ -1,5 +1,5 @@
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { NavigationProp, useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useCallback, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -10,19 +10,21 @@ import { Chip, ChipRow, ErrorState, Notice, SectionHeader, SkeletonList, StateVi
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
-import { CatalogSummary, Offer, Product, ProductPage, Store } from "../types";
-import { ageLabel, formatDate, formatPrice, isStale, minProductPrice, plural } from "../utils/prices";
-import { colors, fonts, radii, outlined, spacing, type } from "../utils/theme";
+import { CatalogSummary, Offer, OfferPage, Product, ProductPage, Store } from "../types";
+import { ageLabel, countLabel, formatDate, formatPrice, isStale, minProductPrice, plural } from "../utils/prices";
+import { colors, radii, outlined, spacing, type } from "../utils/theme";
 import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabs = useNavigation<NavigationProp<{ Offers: { storeId?: string } | undefined }>>();
   const insets = useSafeAreaInsets();
   const tabInset = useTabBarInset();
   const addToCart = useAddToCart();
   const [catalog, setCatalog] = useState<ProductPage | null>(null);
   const [summary, setSummary] = useState<CatalogSummary | null>(null);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [offerCounts, setOfferCounts] = useState<OfferPage["stores"]>([]);
   const [stores, setStores] = useState<Store[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [activeCategory, setActiveCategory] = useState("Усі");
@@ -39,6 +41,7 @@ export function HomeScreen() {
         setCatalog(nextCatalog);
         setSummary(nextSummary);
         setOffers(nextOffers.items);
+        setOfferCounts(nextOffers.stores);
         setStores(nextStores);
         setStatus("ready");
       })
@@ -52,15 +55,16 @@ export function HomeScreen() {
   const openProduct = (product: Product) => navigation.navigate("ProductDetails", { productId: product.id });
   const checkedAt = summary?.latestCheckedAt ?? null;
   const total = summary?.total ?? 0;
+  const storeTiles = stores
+    .map((store) => ({ store, count: offerCounts.find((item) => item.storeId === store.id)?.count ?? 0 }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: tabInset }]} showsVerticalScrollIndicator={false}>
-      <View style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}>
+      <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
         <View style={wideContent}>
-          <View style={styles.brandRow}>
-            <Text style={styles.brand}>PriceWise</Text>
-          </View>
-          <Text accessibilityRole="header" style={styles.heroTitle}>Що шукаємо сьогодні?</Text>
+          <Text accessibilityRole="header" style={styles.brand}>PriceWise</Text>
 
           <Pressable
             accessibilityRole="search"
@@ -68,31 +72,15 @@ export function HomeScreen() {
             onPress={() => navigation.navigate("Search" as never)}
             style={({ pressed }) => [styles.searchBar, pressed && styles.pressed]}
           >
-            <Icon name="search" size={20} color={colors.primary} />
+            <Icon name="search" size={20} color={colors.muted} />
             <Text style={styles.searchPlaceholder} numberOfLines={1}>Товар, бренд або категорія</Text>
           </Pressable>
 
           {status === "ready" && total > 0 ? (
-            <View style={styles.stats}>
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{total.toLocaleString("uk-UA")}</Text>
-                <Text style={styles.statLabel}>{plural(total, "товар", "товари", "товарів")}</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <Text style={styles.statValue}>{summary?.storesWithPrices} з {stores.length}</Text>
-                <Text style={styles.statLabel}>мереж із цінами</Text>
-              </View>
-              {checkedAt ? (
-                <>
-                  <View style={styles.statDivider} />
-                  <View style={styles.stat}>
-                    <Text style={styles.statValue}>{ageLabel(checkedAt)}</Text>
-                    <Text style={styles.statLabel}>{formatDate(checkedAt)}</Text>
-                  </View>
-                </>
-              ) : null}
-            </View>
+            <Text style={styles.stats}>
+              {total.toLocaleString("uk-UA")} {plural(total, "товар", "товари", "товарів")} · {summary?.storesWithPrices} з {stores.length} мереж
+              {checkedAt ? ` · ціни на ${formatDate(checkedAt)} (${ageLabel(checkedAt)})` : ""}
+            </Text>
           ) : null}
         </View>
       </View>
@@ -116,14 +104,28 @@ export function HomeScreen() {
                 {offers.length ? (
                   <>
                     <SectionHeader
-                      title="Акційні товари"
-                      subtitle="Знижка вказана за даними магазину на дату збору"
+                      title="Топ знижок"
+                      subtitle="Найбільші знижки за даними магазинів на дату збору"
                       actionLabel="Показати всі"
                       onAction={() => navigation.navigate("Offers" as never)}
                     />
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railScroll} contentContainerStyle={styles.rail}>
                       {offers.map((offer) => (
                         <OfferCard key={offer.id} offer={offer} onPress={() => navigation.navigate("ProductDetails", { productId: offer.product.id })} />
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : null}
+
+                {storeTiles.length ? (
+                  <>
+                    <SectionHeader title="Акції за магазинами" />
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tilesScroll} contentContainerStyle={styles.tiles}>
+                      {storeTiles.map(({ store, count }) => (
+                        <Pressable key={store.id} accessibilityRole="link" onPress={() => tabs.navigate("Offers", { storeId: store.id })} style={({ pressed }) => [styles.tile, pressed && styles.pressed]}>
+                          <Text style={type.bodyStrong} numberOfLines={1}>{store.name}</Text>
+                          <Text style={type.small} numberOfLines={1}>{countLabel(count, "акція", "акції", "акцій")}</Text>
+                        </Pressable>
                       ))}
                     </ScrollView>
                   </>
@@ -141,12 +143,12 @@ export function HomeScreen() {
 
                 <SectionHeader title="Найнижчі ціни в каталозі" subtitle="За сумою, а не за вигодою: товари та обсяги різні" />
                 <View style={styles.dealList}>
-                  {best.map((product, index) => (
+                  {best.map((product) => (
                     <Pressable
                       key={product.id}
                       accessibilityRole="link"
                       onPress={() => openProduct(product)}
-                      style={({ pressed }) => [styles.dealRow, index > 0 && styles.dealDivider, pressed && styles.pressed]}
+                      style={({ pressed }) => [styles.dealRow, pressed && styles.pressed]}
                     >
                       <View style={styles.dealText}>
                         <Text style={type.bodyStrong} numberOfLines={1}>{product.name}</Text>
@@ -169,24 +171,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.xxl },
   pressed: { opacity: 0.8 },
-  hero: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, borderBottomWidth: 1, borderBottomColor: colors.border },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  brand: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, color: colors.text },
-  heroTitle: { ...type.display, marginTop: spacing.sm, marginBottom: spacing.md },
+  hero: { backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  brand: { ...type.display, fontSize: 24, lineHeight: 30, marginBottom: spacing.md },
   searchBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
   searchPlaceholder: { ...type.body, flex: 1, color: colors.muted },
-  stats: { flexDirection: "row", alignItems: "stretch", marginTop: spacing.lg },
-  stat: { flex: 1, minWidth: 0 },
-  statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.md },
-  statValue: { ...type.numeric, fontFamily: fonts.bold, fontSize: 16, lineHeight: 22, color: colors.text },
-  statLabel: { fontFamily: fonts.medium, fontSize: 12, lineHeight: 16, color: colors.muted },
+  stats: { ...type.small, marginTop: spacing.sm },
   body: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   disclaimer: { ...type.small },
-  railScroll: { marginHorizontal: -spacing.lg, marginBottom: -spacing.md },
-  rail: { gap: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xl, paddingHorizontal: spacing.lg },
+  railScroll: { marginHorizontal: -spacing.lg, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border },
+  rail: { flexGrow: 1 },
   gridGap: { marginTop: spacing.md },
-  dealList: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, paddingHorizontal: spacing.lg },
-  dealRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm },
-  dealDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  tilesScroll: { marginHorizontal: -spacing.lg },
+  tiles: { gap: spacing.sm, paddingHorizontal: spacing.lg },
+  tile: { ...outlined, width: 124, padding: spacing.md, borderRadius: radii.md },
+  dealList: { borderTopWidth: 1, borderTopColor: colors.border },
+  dealRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   dealText: { flex: 1, minWidth: 0 }
 });
