@@ -18,7 +18,7 @@ import { ShoppingListScreen } from "../screens/ShoppingListScreen";
 import { colors, layout, spacing, type, fonts, radii, shadowRaised } from "../utils/theme";
 
 export type RootStackParamList = {
-  Tabs: undefined;
+  Tabs: { screen: string } | undefined;
   ProductDetails: { productId: string };
   RecipeDetails: { recipeId: string };
   ChangePassword: undefined; CompareStores: { listId: string };

@@ -69,7 +69,7 @@ export function RecipesScreen() {
           <View style={contentWidth}>
             <StateView icon="book" title="Меню ще формується" text="Рецепти з'являться, коли в каталозі будуть усі потрібні продукти." />
           </View>
-        ) : null
+        ) : undefined
       }
     />
   );

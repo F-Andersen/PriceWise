@@ -195,7 +195,7 @@ export function ShoppingListScreen() {
                 onSecondary={() => navigation.navigate("Recipes" as never)}
               />
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const cheapest = cheapestAvailablePrice(item.product);
