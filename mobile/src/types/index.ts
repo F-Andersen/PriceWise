@@ -153,18 +153,33 @@ export type Alternative = {
   savingPercent: number;
 };
 
+export type RecipeItem = {
+  id: string;
+  name: string;
+  amount: number;
+  unit: string;
+  optional: boolean;
+  /** Скільки упаковок покласти в кошик. */
+  quantity: number;
+  lowestPrice: number | null;
+  dishCost: number | null;
+  purchaseCost: number | null;
+  product: Product | null;
+};
+
 export type Recipe = {
   id: string;
   title: string;
   description: string;
   imageUrl?: string;
-  guide?: {
+  guide: {
     durationMinutes: number;
     servings: number;
-    difficulty: "Легко" | "Середньо";
+    difficulty: string;
     steps: string[];
   };
-  items: Array<{ id: string; quantity: number; product: Product }>;
+  items: RecipeItem[];
+  cost: { dish: number; purchase: number; unpriced: number };
 };
 
 export type Offer = {
