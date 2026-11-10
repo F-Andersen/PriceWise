@@ -6,17 +6,21 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../components/Toast";
-import { Badge, contentWidth, ErrorState, IconButton, PageTitle, ProductImage, SkeletonList, StateView, Stepper } from "../components/ui";
+import { Badge, contentWidth, ErrorState, IconButton, PageTitle, ProductImage, SkeletonList, StateView, Stepper, VolumeTag } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList, ShoppingListItem } from "../types";
 import { cheapestAvailablePrice, countLabel, formatDate, formatPrice, isStale, latestCollectedAt, minProductPrice } from "../utils/prices";
-import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
+import { productTitle, volumeLabel } from "../utils/productText";
+import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
+import { useTabBarHeight, useTabBarInset } from "../utils/useTabBarInset";
 
 export function ShoppingListScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
+  const tabBarHeight = useTabBarHeight();
   const toast = useToast();
   const { token, sessionExpired, openAuth } = useAuth();
   const [list, setList] = useState<ShoppingList | null>(null);
@@ -147,9 +151,9 @@ export function ShoppingListScreen() {
         data={status === "ready" ? items : []}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, !(status === "ready" && items.length > 0) && { paddingBottom: tabInset }]}
         ListHeaderComponent={
-          <View style={contentWidth}>
+          <View style={[contentWidth, status === "ready" && items.length > 0 && styles.headerRule]}>
             <PageTitle
               title="Кошик"
               subtitle={list ? `${list.title} · ${countLabel(items.length, "товар", "товари", "товарів")}` : undefined}
@@ -195,33 +199,44 @@ export function ShoppingListScreen() {
                 onSecondary={() => navigation.navigate("Recipes" as never)}
               />
             </View>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const cheapest = cheapestAvailablePrice(item.product);
           const price = minProductPrice(item.product);
+          const title = productTitle(item.product);
+          const volume = volumeLabel(item.product.volume);
           return (
             <View style={contentWidth}>
               <View style={styles.item}>
                 <Pressable
                   accessibilityRole="link"
+                  accessibilityLabel={`${item.product.name}, ${item.product.volume}`}
                   onPress={() => navigation.navigate("ProductDetails", { productId: item.productId })}
                   style={({ pressed }) => [styles.itemMain, pressed && styles.pressed]}
                 >
-                  <ProductImage uri={item.product.imageUrl} size={60} />
+                  <View style={styles.itemImage}>
+                    <ProductImage uri={item.product.imageUrl} size={72} />
+                    {volume ? <VolumeTag label={volume} /> : null}
+                  </View>
                   <View style={styles.itemBody}>
-                    <Text style={type.bodyStrong} numberOfLines={2}>{item.product.name}</Text>
-                    <Text style={type.small} numberOfLines={1}>{item.product.volume}</Text>
-                    {price !== null && cheapest ? (
-                      <Text style={styles.itemPrice} numberOfLines={1}>{formatPrice(price)} · {cheapest.store.name}</Text>
-                    ) : (
-                      <View style={styles.badgeGap}><Badge label="Ціни немає" tone="caution" icon="alert" /></View>
-                    )}
+                    {title.brand ? <Text style={styles.itemBrand} numberOfLines={1}>{title.brand}</Text> : null}
+                    <Text style={styles.itemName} numberOfLines={2}>{title.name}</Text>
                   </View>
                 </Pressable>
                 <View style={styles.itemActions}>
+                  <View style={styles.itemPriceCol}>
+                    {price !== null && cheapest ? (
+                      <>
+                        <Text style={styles.itemPrice} numberOfLines={1}>{formatPrice(price)}</Text>
+                        <Text style={type.small} numberOfLines={1}>{cheapest.store.name}</Text>
+                      </>
+                    ) : (
+                      <Badge label="Ціни немає" tone="caution" icon="alert" />
+                    )}
+                  </View>
                   <Stepper value={item.quantity} name={item.product.name} onChange={(next) => changeQuantity(item, next)} />
-                  <IconButton icon="trash" label={`Видалити: ${item.product.name}`} onPress={() => remove(item)} />
+                  <IconButton icon="trash" tone="ghost" size={36} label={`Видалити: ${item.product.name}`} onPress={() => remove(item)} />
                 </View>
               </View>
             </View>
@@ -230,18 +245,18 @@ export function ShoppingListScreen() {
       />
 
       {status === "ready" && items.length > 0 ? (
-        <View style={styles.footer}>
-          <View style={contentWidth}>
+        <View style={[styles.footerWrap, { marginBottom: tabBarHeight }]}>
+          <View style={[contentWidth, styles.footer]}>
             <View style={styles.footerSummary}>
               <View style={styles.footerText}>
                 <Text style={type.label}>Орієнтовний мінімум</Text>
                 <Text style={styles.footerHint}>
-                  Якщо брати кожен товар там, де він найдешевший.{unpriced ? ` Не враховано товарів без ціни: ${unpriced}.` : ""}
+                  Кожен товар там, де найдешевше.{unpriced ? ` Без ціни: ${unpriced}.` : ""}
+                  {collectedAt ? <Text style={isStale(collectedAt) ? styles.footerDateStale : undefined}> Ціни на {formatDate(collectedAt)}.</Text> : null}
                 </Text>
               </View>
               <Text style={type.price}>≈ {formatPrice(Math.round(estimate * 100) / 100)}</Text>
             </View>
-            {collectedAt ? <Text style={[styles.footerDate, isStale(collectedAt) && styles.footerDateStale]}>Ціни станом на {formatDate(collectedAt)}. Це не сума до сплати.</Text> : null}
             <PrimaryButton title="Порівняти магазини" icon="store" onPress={() => list && navigation.navigate("CompareStores", { listId: list.id })} />
           </View>
         </View>
@@ -257,23 +272,27 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.75 },
   newList: { minHeight: layout.minTouch, justifyContent: "center" },
   newListText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
-  lists: { flexGrow: 0, marginBottom: spacing.md },
-  listsContent: { gap: spacing.sm },
+  lists: { flexGrow: 0, marginBottom: spacing.md, marginHorizontal: -spacing.lg },
+  listsContent: { gap: spacing.sm, paddingHorizontal: spacing.lg },
   listChip: { minWidth: 120, maxWidth: 180, minHeight: 52, justifyContent: "center", paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.surface, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
   listChipActive: { backgroundColor: colors.text, borderColor: colors.text },
   listChipTitle: { ...type.small, color: colors.text, fontFamily: fonts.semibold },
   listChipCount: { ...type.small, fontSize: 12 },
   listChipTextActive: { color: colors.onPrimary },
-  item: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  headerRule: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  item: { backgroundColor: colors.surface, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   itemMain: { flexDirection: "row", gap: spacing.md },
+  itemImage: { width: 72 },
   itemBody: { flex: 1, minWidth: 0 },
-  itemPrice: { ...type.bodyStrong, ...type.numeric, marginTop: spacing.xs },
-  badgeGap: { marginTop: spacing.xs },
-  itemActions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.sm },
-  footer: { backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  itemBrand: { fontFamily: fonts.bold, fontSize: 14, lineHeight: 19, color: colors.text },
+  itemName: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: colors.textSoft },
+  itemPrice: { ...type.bodyStrong, ...type.numeric },
+  itemPriceCol: { flex: 1, minWidth: 0 },
+  itemActions: { flexDirection: "row", alignItems: "center", gap: spacing.xs, marginTop: spacing.sm },
+  footerWrap: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border },
+  footer: { backgroundColor: colors.surface },
   footerSummary: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, marginBottom: spacing.sm },
   footerText: { flex: 1, minWidth: 0 },
   footerHint: { ...type.small, fontSize: 12 },
-  footerDate: { ...type.small, fontSize: 12, marginBottom: spacing.sm },
   footerDateStale: { color: colors.caution, fontFamily: fonts.semibold }
 });

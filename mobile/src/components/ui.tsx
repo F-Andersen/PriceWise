@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { Animated, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, ViewStyle } from "react-native";
 import { ageLabel, formatDate, isStale } from "../utils/prices";
-import { colors, layout, radii, shadow, spacing, type, fonts } from "../utils/theme";
+import { colors, layout, radii, outlined, spacing, type, fonts } from "../utils/theme";
 import { Icon, IconName } from "./Icon";
 import { PrimaryButton } from "./PrimaryButton";
 
@@ -47,10 +47,10 @@ type Tone = "neutral" | "caution" | "similar" | "deal" | "primary";
 
 const toneStyles: Record<Tone, { bg: string; fg: string }> = {
   neutral: { bg: colors.surfaceMuted, fg: colors.textSoft },
-  caution: { bg: colors.cautionSoft, fg: colors.caution },
-  similar: { bg: colors.similarSoft, fg: colors.similar },
-  deal: { bg: colors.dealSoft, fg: colors.deal },
-  primary: { bg: colors.primarySoft, fg: colors.primaryDark }
+  caution: { bg: colors.surfaceMuted, fg: colors.caution },
+  similar: { bg: colors.surfaceMuted, fg: colors.similar },
+  deal: { bg: colors.deal, fg: colors.onPrimary },
+  primary: { bg: colors.positive, fg: colors.onPrimary }
 };
 
 export function Badge({ label, tone = "neutral", icon }: { label: string; tone?: Tone; icon?: IconName }) {
@@ -68,6 +68,7 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      hitSlop={4}
       onPress={onPress}
       style={({ pressed }) => [styles.chip, active && styles.chipActive, pressed && styles.pressed]}
     >
@@ -78,13 +79,13 @@ export function Chip({ label, active, onPress }: { label: string; active: boolea
 
 export function ChipRow({ children }: { children: ReactNode }) {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
+    <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
       {children}
     </ScrollView>
   );
 }
 
-export function IconButton({ icon, label, onPress, disabled, tone = "neutral", size = 44 }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; tone?: "neutral" | "primary"; size?: number }) {
+export function IconButton({ icon, label, onPress, disabled, tone = "neutral", size = 44 }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean; tone?: "neutral" | "primary" | "ghost"; size?: number }) {
   const isPrimary = tone === "primary";
   const color = disabled ? colors.borderStrong : isPrimary ? colors.onPrimary : colors.text;
   return (
@@ -97,8 +98,9 @@ export function IconButton({ icon, label, onPress, disabled, tone = "neutral", s
       onPress={onPress}
       style={({ pressed }) => [
         styles.iconButton,
-        { width: size, height: size, borderRadius: size / 2 },
+        { width: size, height: size, borderRadius: radii.sm },
         isPrimary && styles.iconButtonPrimary,
+        tone === "ghost" && styles.iconButtonGhost,
         pressed && !disabled && styles.pressed
       ]}
     >
@@ -123,12 +125,21 @@ export function ProductImage({ uri, size, height, label }: { uri?: string | null
   );
 }
 
+/** Чорна мітка об'єму в кутку фото товару. */
+export function VolumeTag({ label }: { label: string }) {
+  return (
+    <View style={styles.volumeTag}>
+      <Text style={styles.volumeText} numberOfLines={1}>{label}</Text>
+    </View>
+  );
+}
+
 export function Stepper({ value, onChange, name }: { value: number; onChange: (next: number) => void; name: string }) {
   return (
     <View style={styles.stepper}>
-      <IconButton icon="minus" label={`Зменшити кількість: ${name}`} disabled={value <= 1} onPress={() => onChange(value - 1)} />
+      <IconButton icon="minus" tone="ghost" size={36} label={`Зменшити кількість: ${name}`} disabled={value <= 1} onPress={() => onChange(value - 1)} />
       <Text accessibilityLabel={`Кількість: ${value}`} style={styles.stepperValue}>{value}</Text>
-      <IconButton icon="plus" label={`Збільшити кількість: ${name}`} onPress={() => onChange(value + 1)} />
+      <IconButton icon="plus" tone="ghost" size={36} label={`Збільшити кількість: ${name}`} onPress={() => onChange(value + 1)} />
     </View>
   );
 }
@@ -144,9 +155,9 @@ export function Notice({ title, text, tone = "caution", icon = "info" }: NoticeP
   const palette = toneStyles[tone];
   return (
     <View style={[styles.notice, { backgroundColor: palette.bg }]}>
-      <Icon name={icon} size={18} color={palette.fg} />
+      <Icon name={icon} size={16} color={palette.fg} />
       <View style={styles.flex}>
-        {title ? <Text style={[type.bodyStrong, { color: palette.fg }]}>{title}</Text> : null}
+        {title ? <Text style={[styles.noticeTitle, { color: palette.fg }]}>{title}</Text> : null}
         <Text style={[type.small, { color: tone === "neutral" ? colors.textSoft : palette.fg }]}>{text}</Text>
       </View>
     </View>
@@ -162,7 +173,7 @@ export function FreshnessNotice({ collectedAt, detail }: { collectedAt: string |
       icon="clock"
       tone={stale ? "caution" : "neutral"}
       title={`Ціни зібрано ${formatDate(collectedAt)} (${ageLabel(collectedAt)})`}
-      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціни із сайтів мереж, без прив'язки до міста. У вашому магазині можуть відрізнятися.")}
+      text={detail ?? (stale ? "Дані могли застаріти. Перевіряйте ціну й наявність у магазині." : "Ціни із сайтів мереж. У вашому магазині можуть відрізнятися.")}
     />
   );
 }
@@ -243,29 +254,33 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.md },
   sectionAction: { minHeight: layout.minTouch, justifyContent: "flex-end", paddingLeft: spacing.sm },
   linkText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
-  card: { ...shadow, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
-  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.pill, maxWidth: "100%" },
-  chipRow: { flexGrow: 0, flexShrink: 0 },
-  chipRowContent: { gap: spacing.sm, paddingVertical: 2 },
-  chip: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  chipActive: { backgroundColor: colors.ink, borderColor: colors.ink },
+  card: { ...outlined, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg },
+  badge: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radii.xs, maxWidth: "100%" },
+  chipRow: { flexGrow: 0, flexShrink: 0, marginHorizontal: -spacing.lg },
+  chipRowContent: { gap: spacing.sm, paddingVertical: 2, paddingHorizontal: spacing.lg },
+  chip: { minHeight: 38, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radii.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  chipActive: { backgroundColor: colors.text, borderColor: colors.text },
   chipText: { ...type.small, color: colors.textSoft, fontFamily: fonts.medium },
   chipTextActive: { color: colors.onPrimary, fontFamily: fonts.semibold },
   iconButton: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   iconButtonPrimary: { backgroundColor: colors.primary, borderColor: colors.primary },
+  iconButtonGhost: { backgroundColor: "transparent", borderColor: "transparent" },
   imageBox: { alignItems: "center", justifyContent: "center", overflow: "hidden", backgroundColor: colors.surface, borderRadius: radii.md },
   image: { width: "100%", height: "100%" },
-  stepper: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
-  stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 28, textAlign: "center" },
-  notice: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, borderRadius: radii.md },
+  volumeTag: { position: "absolute", left: 0, bottom: 0, maxWidth: "100%", paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs, backgroundColor: colors.text },
+  volumeText: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 15, color: colors.onPrimary },
+  stepper: { flexDirection: "row", alignItems: "center", padding: 2, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
+  stepperValue: { ...type.bodyStrong, ...type.numeric, minWidth: 24, textAlign: "center" },
+  notice: { flexDirection: "row", gap: spacing.sm, paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radii.md },
+  noticeTitle: { ...type.small, fontFamily: fonts.semibold },
   priceDate: { flexDirection: "row", alignItems: "center", gap: 4 },
   state: { alignItems: "center", paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg },
-  stateIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: colors.primarySoft, marginBottom: spacing.md },
+  stateIcon: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: colors.surfaceMuted, marginBottom: spacing.md },
   stateText: { textAlign: "center" },
   stateBody: { textAlign: "center", color: colors.textSoft, marginTop: spacing.xs, maxWidth: 420 },
   stateAction: { marginTop: spacing.md, width: "100%", maxWidth: 320 },
   bone: { backgroundColor: colors.surfaceMuted, borderRadius: radii.sm },
-  skeletonRow: { ...shadow, flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg },
+  skeletonRow: { ...outlined, flexDirection: "row", gap: spacing.md, padding: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg },
   skeletonImage: { width: 76, height: 76 },
   skeletonLines: { flex: 1, gap: spacing.sm },
   skeletonLineLong: { height: 14, width: "85%" },

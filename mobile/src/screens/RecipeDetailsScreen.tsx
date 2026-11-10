@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -24,7 +25,7 @@ const RECIPE_LOGIN_REASON = "Увійдіть, і продукти рецепт�
 
 export function RecipeDetailsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, "RecipeDetails">>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const toast = useToast();
   const { withAuth } = useAuth();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
@@ -63,7 +64,7 @@ export function RecipeDetailsScreen() {
         list = await api.addRecipeToList(recipe.id, undefined, recipe.guide.servings);
       }
       await AsyncStorage.setItem("activeListId", list.id);
-      toast("Продукти рецепта додано в кошик", { actionLabel: "До кошика", onAction: () => navigation.navigate("Cart" as never) });
+      toast("Продукти рецепта додано в кошик", { actionLabel: "До кошика", onAction: () => navigation.popTo("Tabs", { screen: "Cart" }) });
     } catch (error) {
       if (error instanceof SessionExpiredError) void withAuth(addToCart, RECIPE_LOGIN_REASON);
       else toast("Не вдалося додати продукти. Спробуйте ще раз.", { kind: "error" });
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   price: { ...type.small, ...type.numeric, color: colors.text, fontFamily: fonts.semibold },
   step: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
   stepLast: { marginBottom: 0 },
-  stepNumber: { width: 28, height: 28, borderRadius: radii.pill, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
+  stepNumber: { width: 28, height: 28, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
   stepNumberText: { ...type.small, color: colors.primaryDark, fontFamily: fonts.bold },
   stepText: { flex: 1 }
 });

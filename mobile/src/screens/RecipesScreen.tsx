@@ -9,11 +9,13 @@ import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { Recipe } from "../types";
 import { countLabel, formatPrice } from "../utils/prices";
-import { colors, radii, shadow, spacing, type } from "../utils/theme";
+import { colors, radii, outlined, spacing, type } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function RecipesScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -31,7 +33,7 @@ export function RecipesScreen() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
       data={status === "ready" ? recipes : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
@@ -69,7 +71,7 @@ export function RecipesScreen() {
           <View style={contentWidth}>
             <StateView icon="book" title="Меню ще формується" text="Рецепти з'являться, коли в каталозі будуть усі потрібні продукти." />
           </View>
-        ) : null
+        ) : undefined
       }
     />
   );
@@ -79,7 +81,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   pressed: { opacity: 0.75 },
-  card: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  card: { ...outlined, flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
   body: { flex: 1, minWidth: 0 },
   desc: { marginTop: 2 },
   meta: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm }

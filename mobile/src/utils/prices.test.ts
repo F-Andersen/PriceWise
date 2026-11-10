@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Price, Product, Store } from "../types";
-import { activePrice, checkedAt, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
+import { rangePosition, sortStorePrices, activePrice, checkedAt, dailyLowestPrices, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, minProductPrice, promoUntilLabel, regularPrice, storeCount } from "./prices";
 
 const store = (id: string) => ({ id, name: id, city: "Київ" }) as Store;
 const DAY = 24 * 60 * 60 * 1000;
@@ -14,6 +14,20 @@ const price = (overrides: Partial<Price>): Price => ({
   isAvailable: true,
   store: store("s1"),
   ...overrides
+});
+
+describe("dailyLowestPrices", () => {
+  const row = (storeId: string, value: number, day: string) => price({ storeId, price: value, dateCollected: `2026-11-${day}T06:00:00.000Z` });
+
+  it("does not mix stores into a zigzag: a store keeps its price until it changes", () => {
+    const points = dailyLowestPrices([row("a", 40, "01"), row("b", 55, "02"), row("a", 42, "03")]);
+    assert.deepEqual(points.map((point) => point.price), [40, 40, 42]);
+  });
+
+  it("keeps only the last dates", () => {
+    const points = dailyLowestPrices([row("a", 40, "01"), row("a", 41, "02"), row("a", 42, "03")], 2);
+    assert.deepEqual(points.map((point) => point.date), ["2026-11-02", "2026-11-03"]);
+  });
 });
 
 describe("activePrice", () => {
@@ -84,5 +98,34 @@ describe("price freshness", () => {
 describe("promoUntilLabel", () => {
   it("formats the last day of a promotion", () => {
     assert.equal(promoUntilLabel(new Date(2026, 10, 10, 23, 59)), "до 10.11");
+  });
+});
+
+describe("sortStorePrices", () => {
+  it("puts confirmed prices first, cheapest on top", () => {
+    const fresh = new Date().toISOString();
+    const stale = new Date(Date.now() - 10 * DAY).toISOString();
+    const prices = [
+      price({ id: "a", price: 60, dateCollected: fresh }),
+      price({ id: "b", price: 40, dateCollected: fresh }),
+      price({ id: "c", price: 10, dateCollected: stale }),
+      price({ id: "d", price: 20, dateCollected: fresh, isAvailable: false })
+    ];
+    assert.deepEqual(sortStorePrices(prices).map((item) => item.id), ["b", "a", "c", "d"]);
+    assert.deepEqual(prices.map((item) => item.id), ["a", "b", "c", "d"]);
+  });
+});
+
+describe("rangePosition", () => {
+  it("places a value between the limits", () => {
+    assert.equal(rangePosition(50, 0, 100), 0.5);
+    assert.equal(rangePosition(0, 0, 100), 0);
+    assert.equal(rangePosition(100, 0, 100), 1);
+  });
+
+  it("clamps values outside the range and handles a flat price", () => {
+    assert.equal(rangePosition(120, 0, 100), 1);
+    assert.equal(rangePosition(-5, 0, 100), 0);
+    assert.equal(rangePosition(40, 40, 40), 0.5);
   });
 });

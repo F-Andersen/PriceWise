@@ -13,7 +13,7 @@ router.use(requireAuth);
 router.get("/", async (req: AuthRequest, res) => {
   const lists = await prisma.shoppingList.findMany({
     where: { userId: req.userId },
-    include: { items: { include: { product: true } } },
+    include: { items: { orderBy: { id: "asc" }, include: { product: true } } },
     orderBy: { createdAt: "desc" }
   });
   res.json(lists);
@@ -28,7 +28,7 @@ router.post("/", async (req: AuthRequest, res) => {
 router.get("/:id", async (req: AuthRequest, res) => {
   const list = await prisma.shoppingList.findFirst({
     where: { id: req.params.id, userId: req.userId },
-    include: { items: { include: { product: { include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
+    include: { items: { orderBy: { id: "asc" }, include: { product: { include: { prices: { where: { store: selectedStoresWhere(parseExcludedStores(req.query.excludeStores)) }, include: { store: true }, orderBy: { dateCollected: "desc" } } } } } } }
   });
   if (!list) return res.status(404).json({ message: "Shopping list not found" });
   res.json(list);
