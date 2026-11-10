@@ -23,6 +23,24 @@ export function activePrice(price: Price) {
   return numberPrice(price.price);
 }
 
+/**
+ * Найнижча ціна серед магазинів на кожну дату збору. Рядок цінової історії діє, доки
+ * магазин не змінить ціну, тому на кожну дату береться останній відомий рядок магазину.
+ */
+export function dailyLowestPrices(prices: Price[], limit = 8) {
+  const days = (price: Price) => price.dateCollected.slice(0, 10);
+  const dates = [...new Set(prices.map(days))].sort();
+  return dates.slice(-limit).map((date) => {
+    const latest = new Map<string, Price>();
+    for (const price of prices) {
+      if (days(price) > date) continue;
+      const known = latest.get(price.storeId);
+      if (!known || days(known) <= days(price)) latest.set(price.storeId, price);
+    }
+    return { date, price: Math.min(...[...latest.values()].map(activePrice)) };
+  });
+}
+
 /** «до 10.11» для дати кінця акції. */
 export function promoUntilLabel(value: string | Date) {
   const date = new Date(value);
@@ -67,6 +85,18 @@ export function averageLatestPrice(product: Product) {
 
 export function storeCount(product: Product) {
   return latestByStore(product.prices).filter(isConfirmedPrice).length;
+}
+
+/** Спершу підтверджені ціни від найнижчої, далі застарілі й відсутні: їх не можна купити за цією ціною. */
+export function sortStorePrices<T extends Price>(prices: T[]) {
+  const byPrice = (a: T, b: T) => activePrice(a) - activePrice(b);
+  return [...prices.filter(isConfirmedPrice).sort(byPrice), ...prices.filter((price) => !isConfirmedPrice(price)).sort(byPrice)];
+}
+
+/** Місце значення на шкалі від 0 до 1; якщо ціна не змінювалась — посередині. */
+export function rangePosition(value: number, min: number, max: number) {
+  if (max <= min) return 0.5;
+  return Math.min(1, Math.max(0, (value - min) / (max - min)));
 }
 
 /** Точні збіги окремо від схожих товарів: схожі не беруть участі в мінімумі й середній ціні. */

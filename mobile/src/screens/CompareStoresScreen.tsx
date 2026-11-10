@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BasketPlanSection } from "../components/BasketPlanSection";
 import { Icon } from "../components/Icon";
-import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
+import { Badge, contentWidth, ErrorState, FreshnessNotice, Notice, SectionHeader, SkeletonList, StateView } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useStores } from "../services/StoresContext";
@@ -50,27 +50,34 @@ function ItemLines({ result }: { result: ComparisonResult }) {
   );
 }
 
-function CompleteCard({ result, total }: { result: ComparisonResult; total: number }) {
+/** Рядок порівняння: магазин, сума й різниця; товари розгортаються натиском. */
+function CompleteRow({ result, total }: { result: ComparisonResult; total: number }) {
+  const [open, setOpen] = useState(false);
   return (
-    <Card style={[styles.card, result.isBest ? styles.cardLowest : {}]}>
-      <View style={styles.cardTop}>
-        <Text style={type.heading}>{result.store.name}</Text>
-        {result.isBest ? <Badge label="Найнижча сума" tone="primary" icon="check" /> : null}
-        {!result.isBest && result.difference !== null ? <Text style={styles.delta}>+{formatPrice(result.difference)}</Text> : null}
-      </View>
-      <Text style={type.priceLarge}>{formatPrice(result.totalPrice)}</Text>
-      <Coverage found={result.foundCount} total={total} />
-      <ItemLines result={result} />
-    </Card>
+    <View style={styles.row}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={({ pressed }) => [styles.rowTop, pressed && styles.pressed]}>
+        <View style={styles.rowMain}>
+          <Text style={type.heading} numberOfLines={1}>{result.store.name}</Text>
+          <Text style={type.small}>{result.foundCount} із {total} товарів</Text>
+          {result.isBest ? <Badge label="Найнижча сума" tone="primary" icon="check" /> : null}
+        </View>
+        <View style={styles.rowSide}>
+          <Text style={type.price} numberOfLines={1}>{formatPrice(result.totalPrice)}</Text>
+          {!result.isBest && result.difference !== null ? <Text style={styles.delta}>+{formatPrice(result.difference)}</Text> : null}
+        </View>
+        <Icon name={open ? "chevronUp" : "chevronDown"} size={18} color={colors.muted} />
+      </Pressable>
+      {open ? <ItemLines result={result} /> : null}
+    </View>
   );
 }
 
-function PartialCard({ result, total }: { result: ComparisonResult; total: number }) {
+function PartialRow({ result, total }: { result: ComparisonResult; total: number }) {
   const [open, setOpen] = useState(false);
   const unconfirmed = result.missing.filter((line) => line.reason === "stale");
   const absent = result.missing.filter((line) => line.reason !== "stale");
   return (
-    <Card style={styles.card}>
+    <View style={styles.row}>
       <View style={styles.cardTop}>
         <Text style={type.heading}>{result.store.name}</Text>
         <Badge label="Неповний кошик" tone="caution" icon="alert" />
@@ -91,7 +98,7 @@ function PartialCard({ result, total }: { result: ComparisonResult; total: numbe
         <Text style={styles.toggleText}>{open ? "Сховати деталі" : "Показати деталі"}</Text>
         <Icon name={open ? "chevronUp" : "chevronDown"} size={16} color={colors.primary} />
       </Pressable>
-    </Card>
+    </View>
   );
 }
 
@@ -99,30 +106,30 @@ function Verdict({ verdict, storeName, hasStale }: { verdict: BasketVerdict; sto
   if (verdict.kind === "cheapest") {
     const names = verdict.storeIds.map(storeName).join(", ");
     return (
-      <Card style={styles.verdict}>
+      <View style={styles.verdict}>
         <Text style={type.label}>Серед {countLabel(verdict.completeCount, "магазину", "магазинів", "магазинів")} із повним кошиком</Text>
         <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>Найнижча сума — {names}, {formatPrice(verdict.total)}</Text>
         <Text style={type.body}>Різниця з найдорожчим повним кошиком за даними на дату збору: {formatPrice(verdict.spread)}. Фактична сума може відрізнятися.</Text>
-      </Card>
+      </View>
     );
   }
   if (verdict.kind === "single_complete") {
     return (
-      <Card style={styles.verdict}>
+      <View style={styles.verdict}>
         <Text style={type.label}>Повний кошик лише в одному магазині</Text>
         <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>{storeName(verdict.storeId)}: {formatPrice(verdict.total)}</Text>
         <Text style={type.body}>
           Це не означає, що тут найдешевше: {verdict.partialCount ? "в інших магазинах у базі є лише частина товарів" : "для інших магазинів цін немає"}, тому чесно порівняти суму поки неможливо.
         </Text>
-      </Card>
+      </View>
     );
   }
   return (
-    <Card style={[styles.verdict, styles.verdictCaution]}>
+    <View style={[styles.verdict, styles.verdictCaution]}>
       <Text style={[type.label, { color: colors.caution }]}>Порівняння неповне</Text>
       <Text accessibilityRole="header" style={[type.title, styles.verdictTitle]}>{hasStale ? "Немає магазину, де всі ціни підтверджені" : "Жоден магазин не має всіх товарів"}</Text>
       <Text style={type.body}>Не можна сказати, де кошик дешевший. Нижче видно, чого бракує в кожному магазині.</Text>
-    </Card>
+    </View>
   );
 }
 
@@ -185,14 +192,18 @@ export function CompareStoresScreen() {
             {complete.length ? (
               <>
                 <SectionHeader title="Повний кошик" subtitle={complete.length >= 2 ? "Ці суми можна порівнювати між собою" : "Є всі товари"} />
-                {complete.map((result) => <CompleteCard key={result.store.id} result={result} total={itemCount} />)}
+                <View style={styles.rows}>
+                  {complete.map((result) => <CompleteRow key={result.store.id} result={result} total={itemCount} />)}
+                </View>
               </>
             ) : null}
 
             {partial.length ? (
               <>
                 <SectionHeader title="Неповний кошик" subtitle="Без рейтингу: сума не включає відсутні товари" />
-                {partial.map((result) => <PartialCard key={result.store.id} result={result} total={itemCount} />)}
+                <View style={styles.rows}>
+                  {partial.map((result) => <PartialRow key={result.store.id} result={result} total={itemCount} />)}
+                </View>
               </>
             ) : null}
 
@@ -237,12 +248,16 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xxl },
   freshness: { marginTop: spacing.md },
   verdict: { gap: spacing.xs },
-  verdictCaution: { borderColor: colors.cautionBorder, backgroundColor: colors.cautionSoft },
+  verdictCaution: { padding: spacing.md, backgroundColor: colors.surfaceMuted, borderRadius: radii.md },
   verdictTitle: { marginBottom: 2 },
-  card: { marginBottom: spacing.md, gap: spacing.sm },
-  cardLowest: { borderColor: colors.primary, borderWidth: 2 },
+  pressed: { opacity: 0.75 },
+  rows: { borderTopWidth: 1, borderTopColor: colors.border },
+  row: { paddingVertical: spacing.md, gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+  rowMain: { flex: 1, minWidth: 0, gap: 2, alignItems: "flex-start" },
+  rowSide: { alignItems: "flex-end", gap: 2 },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: spacing.sm },
-  delta: { ...type.bodyStrong, ...type.numeric, color: colors.textSoft },
+  delta: { ...type.small, ...type.numeric, color: colors.textSoft },
   coverage: { gap: spacing.xs },
   coverageTrack: { height: 6, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted, overflow: "hidden" },
   coverageFill: { height: "100%", borderRadius: radii.pill },

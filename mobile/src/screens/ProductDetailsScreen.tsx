@@ -6,41 +6,49 @@ import { LineChart } from "react-native-chart-kit";
 import { Icon } from "../components/Icon";
 import { PriceInsight } from "../components/PriceInsight";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, Notice, PriceDate, ProductImage, SectionHeader, SkeletonList } from "../components/ui";
+import { Badge, Card, contentWidth, ErrorState, FreshnessNotice, IconButton, Notice, PriceDate, ProductImage, SectionHeader, SkeletonList, VolumeTag } from "../components/ui";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { api } from "../services/api";
 import { useAddToCart } from "../services/useAddToCart";
 import { Alternative, MarketPrice, Price, Product } from "../types";
-import { activePrice, checkedAt, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, splitMarketPrices } from "../utils/prices";
+import { activePrice, checkedAt, dailyLowestPrices, countLabel, formatPrice, hasActiveDiscount, isConfirmedPrice, isStale, latestByStore, productImageForBestPrice, promoUntilLabel, regularPrice, sortStorePrices, splitMarketPrices } from "../utils/prices";
+import { productTitle, unitPriceLabel, volumeLabel } from "../utils/productText";
 import { colors, layout, radii, spacing, type, fonts } from "../utils/theme";
 
-function PriceRow({ price, showDivider, isLowest, productName }: { price: Price | MarketPrice; showDivider: boolean; isLowest?: boolean; productName?: string }) {
+/** Скільки магазинів видно одразу; коротший список не згортаємо. */
+const VISIBLE_STORES = 3;
+const COLLAPSE_FROM = 5;
+
+function PriceRow({ price, isLowest, productName, volume }: { price: Price | MarketPrice; isLowest?: boolean; productName?: string; volume: string }) {
   const unconfirmed = isStale(checkedAt(price));
   const unavailable = !price.isAvailable && !unconfirmed;
   const hasDiscount = !unavailable && !unconfirmed && hasActiveDiscount(price);
+  const perUnit = unavailable || unconfirmed ? null : unitPriceLabel(activePrice(price), volume);
   return (
-    <View style={[styles.priceRow, showDivider && styles.divider]}>
+    <View style={styles.priceRow}>
       <View style={styles.priceRowMain}>
-        <Text style={type.bodyStrong}>{price.store.name}</Text>
+        <Text style={type.bodyStrong} numberOfLines={1}>{price.store.name}</Text>
         {productName ? <Text style={styles.similarName} numberOfLines={2}>{productName}</Text> : null}
         <PriceDate value={checkedAt(price)} />
-        {price.sourceUrl ? (
-          <Pressable accessibilityRole="link" accessibilityLabel={`Відкрити товар на сайті: ${price.store.name}`} onPress={() => Linking.openURL(price.sourceUrl!)} style={styles.source}>
-            <Text style={styles.sourceText}>Відкрити товар</Text>
-            <Icon name="external" size={14} color={colors.primary} />
-          </Pressable>
+        {unconfirmed || unavailable || isLowest || hasDiscount ? (
+          <View style={styles.badges}>
+            {unconfirmed ? <Badge label="Не підтверджено" tone="caution" /> : null}
+            {unavailable ? <Badge label="Немає в наявності" tone="caution" /> : null}
+            {isLowest ? <Badge label="Найнижча" tone="primary" /> : null}
+            {hasDiscount ? <Badge label={price.promoEndsAt ? `Акція ${promoUntilLabel(price.promoEndsAt)}` : "Акція"} tone="deal" /> : null}
+          </View>
         ) : null}
       </View>
       <View style={styles.priceRowSide}>
-        <Text style={[type.price, (unavailable || unconfirmed) && styles.unavailable]}>{formatPrice(activePrice(price))}</Text>
+        <Text style={[type.price, (unavailable || unconfirmed) && styles.unavailable]} numberOfLines={1}>{formatPrice(activePrice(price))}</Text>
         {hasDiscount ? <Text style={styles.oldPrice}>{formatPrice(regularPrice(price))}</Text> : null}
-        <View style={styles.badges}>
-          {unconfirmed ? <Badge label="Не підтверджено" tone="caution" /> : null}
-          {unavailable ? <Badge label="Немає в наявності" tone="caution" /> : null}
-          {isLowest ? <Badge label="Найнижча" tone="primary" /> : null}
-          {hasDiscount ? <Badge label={price.promoEndsAt ? `Акція ${promoUntilLabel(price.promoEndsAt)}` : "Акція"} tone="deal" /> : null}
-        </View>
+        {perUnit ? <Text style={styles.unitPrice} numberOfLines={1}>{perUnit}</Text> : null}
       </View>
+      {price.sourceUrl ? (
+        <IconButton icon="external" size={40} label={`Відкрити товар на сайті: ${price.store.name}`} onPress={() => Linking.openURL(price.sourceUrl!)} />
+      ) : (
+        <View style={styles.noLink} />
+      )}
     </View>
   );
 }
@@ -55,6 +63,7 @@ export function ProductDetailsScreen() {
   const [alternatives, setAlternatives] = useState<Alternative[]>([]);
   const [failed, setFailed] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [showAllStores, setShowAllStores] = useState(false);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -85,23 +94,41 @@ export function ProductDetailsScreen() {
   const isWeighedProduce = product.barcode.startsWith("fresh:");
   const newest = exact.reduce<string | null>((date, price) => (!date || +new Date(checkedAt(price)) > +new Date(date) ? checkedAt(price) : date), null);
 
-  const history = (product.prices || []).slice(-8);
-  const distinctDates = new Set(history.map((price) => price.dateCollected.slice(0, 10))).size;
+  const stores = sortStorePrices(exact);
+  const hiddenStores = !showAllStores && stores.length >= COLLAPSE_FROM ? stores.length - VISIBLE_STORES : 0;
+  const visibleStores = hiddenStores ? stores.slice(0, VISIBLE_STORES) : stores;
+
+  const title = productTitle(product);
+  const volume = volumeLabel(product.volume);
+  const lowestPerUnit = lowest === null ? null : unitPriceLabel(lowest, product.volume);
+
+  const history = dailyLowestPrices(product.prices || []);
+  const distinctDates = history.length;
+  const labelStep = Math.ceil(history.length / 4);
+  const historyPrices = history.map((point) => point.price);
+  // Without decimals a narrow price range repeats the same axis label.
+  const chartDecimals = history.length && Math.max(...historyPrices) - Math.min(...historyPrices) < 4 ? 1 : 0;
   const chartWidth = Math.min(width, layout.maxContent) - spacing.lg * 2 - spacing.lg * 2 - 2;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={contentWidth}>
-        <ProductImage uri={productImageForBestPrice(product)} height={Math.min(220, width * 0.55)} label={product.name} />
+        <View>
+          <ProductImage uri={productImageForBestPrice(product)} height={Math.min(220, width * 0.55)} label={product.name} />
+          {volume ? <VolumeTag label={volume} /> : null}
+        </View>
         <Text style={[type.label, styles.category]}>{product.category}</Text>
-        <Text accessibilityRole="header" style={[type.title, styles.title]}>{product.name}</Text>
-        <Text style={type.small}>{product.brand} · {product.volume} · {product.unit}</Text>
+        <Text accessibilityRole="header" accessibilityLabel={product.name} style={[type.title, styles.title]}>
+          {title.brand ? <Text>{title.brand} </Text> : null}
+          <Text style={title.brand ? styles.titleName : undefined}>{title.name}</Text>
+        </Text>
 
-        <Card style={styles.summary}>
+        <View style={styles.summary}>
           <View style={styles.summaryRow}>
             <View style={styles.flex}>
               <Text style={type.label}>Найнижча ціна в базі</Text>
               <Text style={type.priceLarge}>{lowest !== null ? formatPrice(lowest) : "Немає"}</Text>
+              {lowestPerUnit ? <Text style={styles.unitPrice}>{lowestPerUnit}</Text> : null}
             </View>
             {average !== null && available.length > 1 ? (
               <View style={styles.summaryAverage}>
@@ -118,23 +145,55 @@ export function ProductDetailsScreen() {
                 : `Дані з ${countLabel(available.length, "магазину", "магазинів", "магазинів")}. Схожі товари не враховано.`}
           </Text>
           <PrimaryButton title="Додати в кошик" icon="basket" loading={adding} onPress={onAdd} />
-        </Card>
+        </View>
 
-        <FreshnessNotice collectedAt={newest} />
-        <PriceInsight productId={product.id} />
-
-        <SectionHeader title="Ціни в магазинах" subtitle={isWeighedProduce ? "Той самий продукт на вагу" : "Цей самий товар"} />
+        <SectionHeader title="Де купити" subtitle={isWeighedProduce ? "Той самий продукт на вагу, спершу найдешевше" : "Цей самий товар, спершу найдешевше"} />
         {isWeighedProduce && exact.length > 1 ? (
           <Notice tone="neutral" icon="info" text={product.barcode.startsWith("fresh:meat") ? "М'ясо на вагу не має спільного штрихкоду, тому ціни магазинів об'єднано за видом м'яса, частиною й брендом. Виробник і калібр можуть відрізнятися." : "Овочі й фрукти на вагу не мають спільного штрихкоду, тому ціни магазинів об'єднано за назвою. Сорт, калібр і країна походження можуть відрізнятися."} />
         ) : null}
         {exact.length ? (
-          <Card style={styles.listCard}>
-            {exact.map((price, index) => (
-              <PriceRow key={price.id} price={price} showDivider={index > 0} isLowest={available.length > 1 && isConfirmedPrice(price) && activePrice(price) === lowest} />
+          <View style={styles.rows}>
+            {visibleStores.map((price) => (
+              <PriceRow key={price.id} price={price} volume={product.volume} isLowest={available.length > 1 && isConfirmedPrice(price) && activePrice(price) === lowest} />
             ))}
-          </Card>
+            {hiddenStores ? (
+              <Pressable accessibilityRole="button" onPress={() => setShowAllStores(true)} style={({ pressed }) => [styles.moreStores, pressed && styles.pressed]}>
+                <Text style={styles.moreStoresText}>Ще {countLabel(hiddenStores, "магазин", "магазини", "магазинів")}</Text>
+                <Icon name="chevronDown" size={16} color={colors.text} />
+              </Pressable>
+            ) : null}
+          </View>
         ) : (
           <Notice text="Для цього товару немає цін у жодному магазині." />
+        )}
+        <View style={styles.freshness}>
+          <FreshnessNotice collectedAt={newest} />
+        </View>
+
+        <PriceInsight productId={product.id} />
+
+        <SectionHeader title="Дешевше за одиницю" subtitle="Той самий вид продукту іншого виробника. Ціна порівнюється за кг, л або шт" />
+        {alternatives.length ? (
+          <View style={styles.rows}>
+            {alternatives.map((item) => (
+              <Pressable
+                key={item.product.id}
+                accessibilityRole="link"
+                onPress={() => navigation.push("ProductDetails", { productId: item.product.id })}
+                style={({ pressed }) => [styles.altRow, pressed && styles.pressed]}
+              >
+                <ProductImage uri={productImageForBestPrice(item.product)} size={56} />
+                <View style={styles.altMain}>
+                  <Text style={styles.altName} numberOfLines={2}>{item.product.name}</Text>
+                  <Text style={type.small} numberOfLines={2}>{formatPrice(item.unitPrice)}/{item.unit} у {item.store.name} (тут від {formatPrice(item.targetUnitPrice)}/{item.unit})</Text>
+                  <Badge label={`−${item.savingPercent}% за ${item.unit}`} tone="primary" />
+                </View>
+                <Icon name="chevronRight" size={18} color={colors.muted} />
+              </Pressable>
+            ))}
+          </View>
+        ) : (
+          <Text style={[type.body, styles.emptyText]}>Дешевшого товару того самого виду в базі не знайдено.</Text>
         )}
 
         {similar.length ? (
@@ -146,52 +205,41 @@ export function ProductDetailsScreen() {
               title="Це інші товари"
               text="Система знайшла їх автоматично й може помилятися: склад, обсяг чи навіть вид продукту можуть відрізнятися. Ціни не враховані в мінімумі."
             />
-            <Card style={[styles.listCard, styles.similarCard]}>
-              {similar.map((price, index) => (
-                <PriceRow key={price.id} price={price} showDivider={index > 0} productName={price.product.name} />
+            <View style={styles.rows}>
+              {similar.map((price) => (
+                <PriceRow key={price.id} price={price} volume={price.product.volume} productName={price.product.name} />
               ))}
-            </Card>
+            </View>
           </>
         ) : null}
 
-        <SectionHeader title="Історія ціни" />
+        <SectionHeader title="Історія ціни" subtitle="Найнижча ціна серед магазинів на кожну дату" />
         {distinctDates >= 2 ? (
           <Card style={styles.chartCard}>
             <LineChart
-              data={{ labels: history.map((_, index) => String(index + 1)), datasets: [{ data: history.map(activePrice) }] }}
+              data={{ labels: history.map((point, index) => ((history.length - 1 - index) % labelStep === 0 ? `${point.date.slice(8)}.${point.date.slice(5, 7)}` : "")), datasets: [{ data: historyPrices }] }}
               width={chartWidth}
               height={190}
               yAxisSuffix=" ₴"
               withShadow={false}
-              chartConfig={{ backgroundGradientFrom: colors.surface, backgroundGradientTo: colors.surface, decimalPlaces: 0, color: () => colors.primary, labelColor: () => colors.muted }}
+              withVerticalLines={false}
+              withOuterLines={false}
+              segments={4}
+              chartConfig={{
+                backgroundGradientFrom: colors.surface,
+                backgroundGradientTo: colors.surface,
+                decimalPlaces: chartDecimals,
+                strokeWidth: 2.5,
+                color: () => colors.primary,
+                labelColor: () => colors.muted,
+                propsForLabels: { fontFamily: fonts.medium, fontSize: 11 },
+                propsForBackgroundLines: { stroke: colors.border, strokeDasharray: "" },
+                propsForDots: { r: "4", strokeWidth: "2", stroke: colors.surface }
+              }}
             />
           </Card>
         ) : (
           <Notice tone="neutral" icon="info" text={distinctDates === 1 ? "Ціни зібрано лише за одну дату, тому динаміку поки показати неможливо." : "Історії цін поки немає."} />
-        )}
-
-        <SectionHeader title="Дешевше за одиницю" subtitle="Той самий вид продукту іншого виробника. Ціна порівнюється за кг, л або шт" />
-        {alternatives.length ? (
-          <Card style={styles.listCard}>
-            {alternatives.map((item, index) => (
-              <Pressable
-                key={item.product.id}
-                accessibilityRole="link"
-                onPress={() => navigation.push("ProductDetails", { productId: item.product.id })}
-                style={({ pressed }) => [styles.altRow, index > 0 && styles.divider, pressed && styles.pressed]}
-              >
-                <View style={styles.flex}>
-                  <Text style={type.bodyStrong} numberOfLines={2}>{item.product.name}</Text>
-                  <Text style={type.small}>
-                    На {item.savingPercent}% дешевше за {item.unit}: {formatPrice(item.unitPrice)}/{item.unit} у {item.store.name} (тут від {formatPrice(item.targetUnitPrice)}/{item.unit})
-                  </Text>
-                </View>
-                <Icon name="chevronRight" size={18} color={colors.muted} />
-              </Pressable>
-            ))}
-          </Card>
-        ) : (
-          <Text style={[type.body, styles.emptyText]}>Дешевшого товару того самого виду в базі не знайдено.</Text>
         )}
       </View>
     </ScrollView>
@@ -206,24 +254,28 @@ const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   pressed: { opacity: 0.75 },
   category: { marginTop: spacing.lg },
-  title: { marginTop: 2, marginBottom: 2 },
-  summary: { marginTop: spacing.lg, marginBottom: spacing.md },
+  title: { marginTop: 2 },
+  titleName: { fontFamily: fonts.regular },
+  summary: { marginTop: spacing.lg },
   summaryRow: { flexDirection: "row", gap: spacing.lg },
   summaryAverage: { alignItems: "flex-end" },
-  summaryBasis: { ...type.small, marginTop: spacing.xs, marginBottom: spacing.md },
-  listCard: { paddingVertical: 0 },
-  similarCard: { marginTop: spacing.sm, borderColor: colors.similarSoft, borderWidth: 2 },
+  summaryBasis: { ...type.small, marginTop: spacing.sm, marginBottom: spacing.md },
+  rows: { borderTopWidth: 1, borderTopColor: colors.border },
   chartCard: { padding: spacing.lg, borderRadius: radii.lg },
-  priceRow: { flexDirection: "row", gap: spacing.md, paddingVertical: spacing.md },
-  divider: { borderTopWidth: 1, borderTopColor: colors.border },
+  priceRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   priceRowMain: { flex: 1, minWidth: 0, gap: 2 },
   priceRowSide: { alignItems: "flex-end", gap: 2 },
-  badges: { alignItems: "flex-end", gap: spacing.xs, marginTop: 2 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.xs },
   oldPrice: { ...type.small, ...type.numeric, textDecorationLine: "line-through" },
+  unitPrice: { ...type.label, fontFamily: fonts.medium, color: colors.textSoft },
   unavailable: { color: colors.muted },
+  noLink: { width: 40 },
   similarName: { ...type.small, color: colors.similar, fontFamily: fonts.medium },
-  source: { flexDirection: "row", alignItems: "center", gap: 4, minHeight: layout.minTouch, alignSelf: "flex-start" },
-  sourceText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold },
-  altRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 60, paddingVertical: spacing.md },
+  moreStores: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, minHeight: layout.minTouch, borderBottomWidth: 1, borderBottomColor: colors.border },
+  moreStoresText: { ...type.small, color: colors.text, fontFamily: fonts.semibold },
+  freshness: { marginTop: spacing.md },
+  altRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+  altMain: { flex: 1, minWidth: 0, gap: spacing.xs, alignItems: "flex-start" },
+  altName: { ...type.bodyStrong },
   emptyText: { color: colors.textSoft }
 });

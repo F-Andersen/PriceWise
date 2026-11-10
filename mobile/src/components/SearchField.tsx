@@ -36,10 +36,10 @@ export function SearchField({ label, placeholder, value, onChangeText }: Props) 
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 56, paddingLeft: spacing.lg, paddingRight: spacing.sm, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.border },
-  barFocused: { borderColor: colors.primary, borderWidth: 2 },
+  bar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 48, paddingLeft: spacing.md, paddingRight: spacing.xs, marginBottom: spacing.sm, backgroundColor: colors.surfaceMuted, borderRadius: radii.md, borderWidth: 1, borderColor: colors.surfaceMuted },
+  barFocused: { backgroundColor: colors.surface, borderColor: colors.primary },
   // Фокус показує рамка всього поля, а не вбудований контур браузера.
-  input: { ...type.body, flex: 1, minWidth: 0, minHeight: 48, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : {}) },
+  input: { ...type.body, flex: 1, minWidth: 0, minHeight: 44, ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : {}) },
   clear: { minHeight: layout.minTouch, justifyContent: "center", paddingHorizontal: spacing.sm },
   clearText: { ...type.small, color: colors.primary, fontFamily: fonts.semibold }
 });

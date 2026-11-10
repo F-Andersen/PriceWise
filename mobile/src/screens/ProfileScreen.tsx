@@ -11,12 +11,14 @@ import { api } from "../services/api";
 import { useAuth } from "../services/AuthContext";
 import { ShoppingList } from "../types";
 import { countLabel, formatDate } from "../utils/prices";
-import { colors, radii, spacing, type, shadow } from "../utils/theme";
+import { colors, radii, spacing, type, outlined } from "../utils/theme";
+import { useTabBarInset } from "../utils/useTabBarInset";
 
 export function ProfileScreen() {
   const { email, openAuth, signOut, token } = useAuth();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabInset = useTabBarInset();
   const [lists, setLists] = useState<ShoppingList[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
@@ -46,7 +48,7 @@ export function ProfileScreen() {
   return (
     <FlatList
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: tabInset }]}
       data={status === "ready" ? lists : []}
       keyExtractor={(item) => item.id}
       showsVerticalScrollIndicator={false}
@@ -100,7 +102,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
   pressed: { opacity: 0.75 },
-  list: { ...shadow, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
+  list: { ...outlined, flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
   listBody: { flex: 1, minWidth: 0 },
   footer: { marginTop: spacing.lg, gap: spacing.sm }
 });

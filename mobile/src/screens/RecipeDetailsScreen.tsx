@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   price: { ...type.small, ...type.numeric, color: colors.text, fontFamily: fonts.semibold },
   step: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.md },
   stepLast: { marginBottom: 0 },
-  stepNumber: { width: 28, height: 28, borderRadius: radii.pill, backgroundColor: colors.primarySoft, alignItems: "center", justifyContent: "center" },
+  stepNumber: { width: 28, height: 28, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted, alignItems: "center", justifyContent: "center" },
   stepNumberText: { ...type.small, color: colors.primaryDark, fontFamily: fonts.bold },
   stepText: { flex: 1 }
 });
