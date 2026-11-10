@@ -105,7 +105,7 @@ export function OffersScreen() {
           <View style={[contentWidth, styles.more]}>
             <PrimaryButton title={`Показати ще (${offers.length} із ${page.total})`} variant="secondary" loading={loadingMore} disabled={loadingMore} onPress={loadMore} />
           </View>
-        ) : null
+        ) : undefined
       }
       ListEmptyComponent={
         status === "ready" ? (
@@ -116,7 +116,7 @@ export function OffersScreen() {
               <StateView icon="tag" title="Акцій немає" text="Для цього магазину в базі немає акційних цін. Це не означає, що акцій немає в самому магазині." actionLabel="Показати всі акції" onAction={() => setSelectedStoreId(undefined)} />
             )}
           </View>
-        ) : null
+        ) : undefined
       }
     />
   );

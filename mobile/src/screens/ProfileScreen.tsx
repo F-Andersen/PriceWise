@@ -82,7 +82,7 @@ export function ProfileScreen() {
           <View style={contentWidth}>
             <StateView icon="basket" title="Кошиків ще немає" text="Перший кошик з'явиться, коли ви додасте товар." />
           </View>
-        ) : null
+        ) : undefined
       }
       ListFooterComponent={
         token ? (
@@ -90,7 +90,7 @@ export function ProfileScreen() {
             <PrimaryButton title="Змінити пароль" variant="secondary" onPress={() => navigation.navigate("ChangePassword" as never)} />
             <PrimaryButton title="Вийти" variant="secondary" onPress={signOut} />
           </View>
-        ) : null
+        ) : undefined
       }
     />
   );
