@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import { config } from "./config";
 import { rateLimit } from "./middleware/rateLimit";
 import { startPriceScheduler } from "./modules/priceMonitoring/priceScheduler";
+import { syncRecipes } from "./services/recipeService";
 import { prisma } from "./prisma";
 import authRoutes from "./routes/auth";
 import offerRoutes from "./routes/offers";
@@ -59,6 +60,7 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 const server = app.listen(config.port, () => {
   console.log(`API is running on port ${config.port}${config.isProduction ? " (production)" : ""}`);
   startPriceScheduler();
+  syncRecipes().catch((error) => console.error("Recipe sync failed", error));
 });
 
 function shutdown(signal: string) {

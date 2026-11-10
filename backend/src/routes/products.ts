@@ -6,6 +6,7 @@ import { prisma } from "../prisma";
 import { hasMorePages, MAX_PAGE_SIZE, parsePagination } from "../utils/pagination";
 import { parseExcludedStores, parseIdList } from "../utils/storeFilter";
 import { selectedStoresWhere, zakazStores } from "../modules/priceMonitoring/zakazStores";
+import { latestPricesInclude } from "../services/latestPrices";
 import { analyzeProduct, ANALYSIS_WINDOW_DAYS } from "../services/priceAnalytics";
 import { productKind } from "../services/productKind";
 import { getAlternatives } from "../services/recommendationService";
@@ -31,16 +32,6 @@ function latestStorePrices<T extends { storeId: string; dateCollected: Date }>(p
   }
   return Array.from(map.values());
 }
-
-/** Newest row per store: enough for lists, and far smaller than the whole history. */
-const latestPricesInclude = (excludedStoreIds: string[]) => ({
-  prices: {
-    where: { store: selectedStoresWhere(excludedStoreIds) },
-    include: { store: true },
-    orderBy: [{ dateCollected: "desc" as const }, { id: "desc" as const }],
-    distinct: ["storeId" as const]
-  }
-});
 
 async function listProducts(req: Request, query: string) {
   const { page, limit, skip } = parsePagination(req.query);

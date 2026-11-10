@@ -145,18 +145,34 @@ model ShoppingListItem {
 }
 
 model Recipe {
-  id          String       @id @default(cuid())
-  title       String
-  description String
-  imageUrl    String?
-  items       RecipeItem[]
+  id              String       @id @default(cuid())
+  /// Stable key of a starter recipe; recipes added directly in the database may omit it
+  slug            String?      @unique
+  title           String
+  description     String
+  imageUrl        String?
+  durationMinutes Int          @default(15)
+  servings        Int          @default(2)
+  difficulty      String       @default("Легко")
+  steps           String[]     @default([])
+  items           RecipeItem[]
 }
 
 model RecipeItem {
-  id        String  @id @default(cuid())
-  recipeId  String
-  productId String
-  quantity  Int     @default(1)
-  recipe    Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  recipeId     String
+  /// Current best match from the catalogue; null while none is on sale
+  productId    String?
+  name         String
+  /// Needed for Recipe.servings, in grams, millilitres or pieces
+  amount       Float
+  unit         String
+  optional     Boolean  @default(false)
+  position     Int      @default(0)
+  categories   String[] @default([])
+  /// A product name must start with one of these
+  includeTerms String[] @default([])
+  excludeTerms String[] @default([])
+  recipe       Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
